@@ -1,0 +1,4 @@
+# requirements.txt for backend Flask API
+flask
+pandas
+scikit-learn

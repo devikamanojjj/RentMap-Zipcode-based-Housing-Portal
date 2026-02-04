@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
 
-const MapContainer = ({ data }) => {
+const MapContainer = ({ data, onLogout, user }) => {
   const [popupInfo, setPopupInfo] = useState(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12');
   const [searchInput, setSearchInput] = useState('');
@@ -14,16 +14,61 @@ const MapContainer = ({ data }) => {
     latitude: 61.1,
     zoom: 8
   });
+  const [roiMap, setRoiMap] = useState({});
+  const [roiMin, setRoiMin] = useState(0);
+  const [roiMax, setRoiMax] = useState(0);
   const mapRef = useRef();
+  // Fetch ROI data from backend and merge with map data
+  useEffect(() => {
+    async function fetchROI() {
+      try {
+        // Prepare data for backend (flatten sales/rent to one row per zipcode/bedroom_type)
+        const flatData = [];
+        data.forEach(item => {
+          // Use avg rent and sales for each zipcode/bedroom_type
+          const avgRent = item.rent && item.rent.length > 0 ? item.rent.reduce((a, b) => a + (b.avg_price || 0), 0) / item.rent.length : 0;
+          const avgSales = item.sales && item.sales.length > 0 ? item.sales.reduce((a, b) => a + (b.price || 0), 0) / item.sales.length : 0;
+          flatData.push({
+            zipcode: item.zipcode,
+            bedroom_type: item.sales && item.sales[0] ? item.sales[0].bedrooms : 'N/A',
+            monthly_rent: avgRent,
+            sales_price: avgSales,
+            inventory: item.rent && item.rent[0] ? item.rent[0].inventory : 1,
+            date: item.rent && item.rent[0] ? item.rent[0].month_year : '2024-01'
+          });
+        });
+        const response = await fetch('http://localhost:5000/api/roi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(flatData)
+        });
+        const result = await response.json();
+        // Map ROI by zipcode
+        const roiByZip = {};
+        let min = Infinity, max = -Infinity;
+        result.pred_df.forEach(row => {
+          roiByZip[row.zipcode] = row.predicted_roi;
+          if (row.predicted_roi !== null && !isNaN(row.predicted_roi)) {
+            min = Math.min(min, row.predicted_roi);
+            max = Math.max(max, row.predicted_roi);
+          }
+        });
+        setRoiMap(roiByZip);
+        setRoiMin(min);
+        setRoiMax(max);
+      } catch (e) {
+        console.error('Failed to fetch ROI:', e);
+      }
+    }
+    if (data && data.length > 0) fetchROI();
+  }, [data]);
 
   const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbHNmMzZ1eW4wMDAwMzJwcHZmMGQxMHMwIn0.EXAMPLE_TOKEN';
 
   const mapStyles = [
-    { value: 'mapbox://styles/mapbox/streets-v12', label: '🛣️ Streets' },
-    { value: 'mapbox://styles/mapbox/satellite-v9', label: '🛰️ Satellite' },
-    { value: 'mapbox://styles/mapbox/dark-v11', label: '🌙 Dark' },
-    { value: 'mapbox://styles/mapbox/light-v11', label: '☀️ Light' },
-    { value: 'mapbox://styles/mapbox/outdoors-v12', label: '🏕️ Outdoors' }
+    { value: 'mapbox://styles/mapbox/streets-v12', label: 'STREET' },
+    { value: 'mapbox://styles/mapbox/satellite-v9', label: 'SATELLITE' },
+    { value: 'mapbox://styles/mapbox/light-v11', label: 'LIGHT' }
   ];
 
   const flyToLocation = (longitude, latitude, zoom = 10) => {
@@ -74,7 +119,12 @@ const MapContainer = ({ data }) => {
       <div className="map-header">
         <h1>RENTMAP-ZIPCODE-BASED HOUSING PORTAL</h1>
         <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
-        
+
+        <div className="top-right-auth">
+          <span className="user-label">{user}</span>
+          <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
+        </div>
+
         <div className="search-box">
           <input
             type="text"
@@ -110,23 +160,19 @@ const MapContainer = ({ data }) => {
           )}
         </div>
 
-        <button 
-          className="reset-btn"
-          onClick={handleResetMap}
-          title="Reset map to original view"
-        >
-          RESET
-        </button>
 
-        <div className="style-selector">
-          <label>Map Style:</label>
-          <select value={mapStyle} onChange={(e) => setMapStyle(e.target.value)}>
-            {mapStyles.map((style) => (
-              <option key={style.value} value={style.value}>
-                {style.label}
-              </option>
-            ))}
-          </select>
+
+        <div className="style-toggle-group">
+          {mapStyles.map((style) => (
+            <button
+              key={style.value}
+              className={`style-toggle-btn${mapStyle === style.value ? ' active' : ''}`}
+              onClick={() => style.value && setMapStyle(style.value)}
+              type="button"
+            >
+              {style.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -193,7 +239,9 @@ const MapContainer = ({ data }) => {
         </div>
       </div>
       
+      {console.log('Current mapStyle:', mapStyle)}
       <Map
+        key={mapStyle}
         ref={mapRef}
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
@@ -201,23 +249,37 @@ const MapContainer = ({ data }) => {
         mapStyle={mapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
       >
-        {data.map((item, idx) => (
-          <Marker
-            key={idx}
-            longitude={item.longitude}
-            latitude={item.latitude}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              flyToLocation(item.longitude, item.latitude, 10);
-              setPopupInfo(item);
-            }}
-          >
-            <div className="marker">
-              <div className="marker-inner">📍</div>
-            </div>
-          </Marker>
-        ))}
+        {data.map((item, idx) => {
+          // Compute blue gradient color based on ROI
+          const roi = roiMap[item.zipcode];
+          let color = '#b3c6ff'; // fallback light blue
+          if (roi !== undefined && roiMax > roiMin) {
+            // roiNorm: 0 (min) to 1 (max)
+            const roiNorm = (roi - roiMin) / (roiMax - roiMin);
+            // Gradient from #b3c6ff (light) to #0033cc (dark)
+            const r = Math.round(179 + (0 - 179) * roiNorm);
+            const g = Math.round(198 + (51 - 198) * roiNorm);
+            const b = Math.round(255 + (204 - 255) * roiNorm);
+            color = `rgb(${r},${g},${b})`;
+          }
+          return (
+            <Marker
+              key={idx}
+              longitude={item.longitude}
+              latitude={item.latitude}
+              anchor="bottom"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                flyToLocation(item.longitude, item.latitude, 10);
+                setPopupInfo(item);
+              }}
+            >
+              <div className="marker">
+                <div className="marker-inner" style={{ color }}>{'📍'}</div>
+              </div>
+            </Marker>
+          );
+        })}
 
         {popupInfo && (
           <Popup
@@ -240,6 +302,13 @@ const MapContainer = ({ data }) => {
           <span className="legend-icon">📍</span>
           <span>Click on markers to view sales & rental data</span>
         </div>
+      </div>
+
+      {/* Map Controller - bottom right */}
+      <div className="map-controller">
+        <button className="controller-btn" title="Zoom In" onClick={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}>+</button>
+        <button className="controller-btn" title="Zoom Out" onClick={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}>-</button>
+        <button className="controller-btn" title="Reset" onClick={() => flyToLocation(-149.8, 61.1, 8)}>&#8634;</button>
       </div>
     </div>
   );

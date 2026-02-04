@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import Map from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import Papa from 'papaparse';
+
 import MapContainer from './components/MapContainer';
+import LoginRegister from './components/LoginRegister';
 import './App.css';
+
 
 function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null); // For auth
 
   useEffect(() => {
     const loadData = async () => {
@@ -85,9 +89,15 @@ function App() {
     return <div className="error">{error}</div>;
   }
 
+  if (!user) {
+    return <LoginRegister onAuth={setUser} />;
+  }
+
+  const handleLogout = () => setUser(null);
+
   return (
     <div className="App">
-      {data && <MapContainer data={data} />}
+      {data && <MapContainer data={data} onLogout={handleLogout} user={user} />}
     </div>
   );
 }
