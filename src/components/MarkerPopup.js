@@ -1,8 +1,47 @@
 import React, { useState } from 'react';
 import './MarkerPopup.css';
 
-const MarkerPopup = ({ data }) => {
+const MarkerPopup = ({ data, user }) => {
   const [activeTab, setActiveTab] = useState('sales');
+  // Favoriting logic (same as MapContainer)
+  const favKey = `favZipcodes_${user || 'default'}`;
+  const getInitialFavs = () => {
+    try {
+      return JSON.parse(localStorage.getItem(favKey)) || [];
+    } catch (e) { return []; }
+  };
+  const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
+  // Sync with localStorage changes (from sidebar, popup, dropdown, etc.)
+  React.useEffect(() => {
+    const handler = () => setFavZipcodes(getInitialFavs());
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user]);
+  // Also update if popup is open and localStorage changes (e.g. sidebar click)
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const favs = getInitialFavs();
+      setFavZipcodes(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(favs)) return favs;
+        return prev;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [user]);
+  const isFavorited = favZipcodes.includes(data.zipcode);
+  const handleFavoriteClick = (e) => {
+    e.stopPropagation();
+    let updatedFavs = [];
+    if (isFavorited) {
+      updatedFavs = favZipcodes.filter(z => z !== data.zipcode);
+    } else {
+      updatedFavs = [...favZipcodes, data.zipcode];
+    }
+    localStorage.setItem(favKey, JSON.stringify(updatedFavs));
+    setFavZipcodes(updatedFavs);
+    // Trigger storage event for cross-component sync
+    window.dispatchEvent(new Event('storage'));
+  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
@@ -88,9 +127,19 @@ const MarkerPopup = ({ data }) => {
 
   return (
     <div className="popup">
-      <div className="popup-header">
-        <h3>Zipcode: {data.zipcode}</h3>
-        <p className="location">Lat: {data.latitude.toFixed(4)}, Long: {data.longitude.toFixed(4)}</p>
+      <div className="popup-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h3 style={{ display: 'inline-block', marginRight: 8 }}>Zipcode: {data.zipcode}</h3>
+          <p className="location" style={{ margin: 0 }}>Lat: {data.latitude.toFixed(4)}, Long: {data.longitude.toFixed(4)}</p>
+        </div>
+        <span
+          className="popup-heart"
+          title={isFavorited ? 'Unfavorite' : 'Favorite'}
+          style={{ cursor: 'pointer', fontSize: '24px', color: isFavorited ? '#e25555' : '#bbb', marginLeft: '8px', transition: 'color 0.2s' }}
+          onClick={handleFavoriteClick}
+        >
+          {isFavorited ? '❤️' : '🤍'}
+        </span>
       </div>
 
       <div className="tabs">

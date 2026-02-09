@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
 
 const MapContainer = ({ data, onLogout, user }) => {
+    const [showFavDropdown, setShowFavDropdown] = useState(false);
   const [popupInfo, setPopupInfo] = useState(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12');
   const [searchInput, setSearchInput] = useState('');
@@ -14,56 +15,30 @@ const MapContainer = ({ data, onLogout, user }) => {
     latitude: 61.1,
     zoom: 8
   });
-  const [roiMap, setRoiMap] = useState({});
-  const [roiMin, setRoiMin] = useState(0);
-  const [roiMax, setRoiMax] = useState(0);
   const mapRef = useRef();
-  // Fetch ROI data from backend and merge with map data
-  useEffect(() => {
-    async function fetchROI() {
-      try {
-        // Prepare data for backend (flatten sales/rent to one row per zipcode/bedroom_type)
-        const flatData = [];
-        data.forEach(item => {
-          // Use avg rent and sales for each zipcode/bedroom_type
-          const avgRent = item.rent && item.rent.length > 0 ? item.rent.reduce((a, b) => a + (b.avg_price || 0), 0) / item.rent.length : 0;
-          const avgSales = item.sales && item.sales.length > 0 ? item.sales.reduce((a, b) => a + (b.price || 0), 0) / item.sales.length : 0;
-          flatData.push({
-            zipcode: item.zipcode,
-            bedroom_type: item.sales && item.sales[0] ? item.sales[0].bedrooms : 'N/A',
-            monthly_rent: avgRent,
-            sales_price: avgSales,
-            inventory: item.rent && item.rent[0] ? item.rent[0].inventory : 1,
-            date: item.rent && item.rent[0] ? item.rent[0].month_year : '2024-01'
-          });
-        });
-        const response = await fetch('http://localhost:5000/api/roi', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(flatData)
-        });
-        const result = await response.json();
-        // Map ROI by zipcode
-        const roiByZip = {};
-        let min = Infinity, max = -Infinity;
-        result.pred_df.forEach(row => {
-          roiByZip[row.zipcode] = row.predicted_roi;
-          if (row.predicted_roi !== null && !isNaN(row.predicted_roi)) {
-            min = Math.min(min, row.predicted_roi);
-            max = Math.max(max, row.predicted_roi);
-          }
-        });
-        setRoiMap(roiByZip);
-        setRoiMin(min);
-        setRoiMax(max);
-      } catch (e) {
-        console.error('Failed to fetch ROI:', e);
-      }
-    }
-    if (data && data.length > 0) fetchROI();
-  }, [data]);
 
-  const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbHNmMzZ1eW4wMDAwMzJwcHZmMGQxMHMwIn0.EXAMPLE_TOKEN';
+  // Favorited zipcodes state for instant UI update
+  const favKey = `favZipcodes_${user}`;
+  const getInitialFavs = () => {
+    try {
+      return JSON.parse(localStorage.getItem(favKey)) || [];
+    } catch (e) { return []; }
+  };
+  const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
+
+  // Listen for localStorage changes (if user favorites elsewhere)
+  React.useEffect(() => {
+    const handler = () => {
+      setFavZipcodes(getInitialFavs());
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user]);
+
+
+  // Use the provided Mapbox token directly for reliability
+  // Use the official Mapbox demo token for troubleshooting
+  const MAPBOX_TOKEN = "REDACTED";
 
   const mapStyles = [
     { value: 'mapbox://styles/mapbox/streets-v12', label: 'STREET' },
@@ -121,8 +96,49 @@ const MapContainer = ({ data, onLogout, user }) => {
         <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
 
         <div className="top-right-auth">
+          <span 
+            className="user-heart"
+            title="View favorited zipcodes"
+            style={{ cursor: 'pointer', marginRight: '8px', fontSize: '20px', color: '#e25555' }}
+            onClick={() => setShowFavDropdown((v) => !v)}
+          >
+            &#10084;
+          </span>
           <span className="user-label">{user}</span>
           <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
+          {showFavDropdown && (
+            <div className="fav-dropdown" style={{ position: 'absolute', left: '-200px', top: '0', background: '#fff', border: '1px solid #ccc', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', zIndex: 100, minWidth: '180px', padding: '8px' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '6px', color: '#e25555' }}>Favorited Zipcodes</div>
+              {favZipcodes.length === 0 ? (
+                <div style={{ color: '#888', fontSize: '14px' }}>No favorites yet</div>
+              ) : (
+                favZipcodes.map((zipcode, idx) => (
+                  <div
+                    key={zipcode}
+                    style={{ display: 'flex', alignItems: 'center', padding: '4px 0' }}
+                  >
+                    <span
+                      style={{ fontSize: '16px', color: '#e25555', marginRight: '6px', cursor: 'pointer' }}
+                      title="Unfavorite"
+                      onClick={() => {
+                        // Unfavorite without closing dropdown
+                        const updatedFavs = favZipcodes.filter(z => z !== zipcode);
+                        localStorage.setItem(favKey, JSON.stringify(updatedFavs));
+                        setFavZipcodes(updatedFavs);
+                      }}
+                    >❤️</span>
+                    <span
+                      style={{ fontWeight: 'bold', fontSize: '16px', color: '#333', cursor: 'pointer' }}
+                      onClick={() => {
+                        setShowFavDropdown(false);
+                        handleZipcodeSelect(zipcode);
+                      }}
+                    >{zipcode}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <div className="search-box">
@@ -198,14 +214,36 @@ const MapContainer = ({ data, onLogout, user }) => {
               ? item.rent.filter(r => r.avg_price).reduce((acc, r) => acc + r.avg_price, 0) / item.rent.filter(r => r.avg_price).length
               : 0;
 
+            const isFavorited = favZipcodes.includes(item.zipcode);
+
+            const handleFavoriteClick = (e) => {
+              e.stopPropagation();
+              let updatedFavs = [];
+              if (isFavorited) {
+                updatedFavs = favZipcodes.filter(z => z !== item.zipcode);
+              } else {
+                updatedFavs = [...favZipcodes, item.zipcode];
+              }
+              localStorage.setItem(favKey, JSON.stringify(updatedFavs));
+              setFavZipcodes(updatedFavs); // instant UI update
+            };
+
             return (
               <div 
                 key={idx} 
                 className="sidebar-zipcode-item"
                 onClick={() => handleSidebarZipcodeClick(item.zipcode)}
               >
-                <div className="sidebar-zipcode-header">
+                <div className="sidebar-zipcode-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span className="sidebar-zipcode-number">📍 {item.zipcode}</span>
+                  <span
+                    className="zipcode-heart"
+                    title={isFavorited ? 'Unfavorite' : 'Favorite'}
+                    style={{ cursor: 'pointer', fontSize: '18px', color: isFavorited ? '#e25555' : '#bbb', marginLeft: '8px', transition: 'color 0.2s' }}
+                    onClick={handleFavoriteClick}
+                  >
+                    {isFavorited ? '❤️' : '🤍'}
+                  </span>
                 </div>
                 <div className="sidebar-zipcode-details">
                   <div className="sidebar-detail-row">
@@ -249,37 +287,23 @@ const MapContainer = ({ data, onLogout, user }) => {
         mapStyle={mapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
       >
-        {data.map((item, idx) => {
-          // Compute blue gradient color based on ROI
-          const roi = roiMap[item.zipcode];
-          let color = '#b3c6ff'; // fallback light blue
-          if (roi !== undefined && roiMax > roiMin) {
-            // roiNorm: 0 (min) to 1 (max)
-            const roiNorm = (roi - roiMin) / (roiMax - roiMin);
-            // Gradient from #b3c6ff (light) to #0033cc (dark)
-            const r = Math.round(179 + (0 - 179) * roiNorm);
-            const g = Math.round(198 + (51 - 198) * roiNorm);
-            const b = Math.round(255 + (204 - 255) * roiNorm);
-            color = `rgb(${r},${g},${b})`;
-          }
-          return (
-            <Marker
-              key={idx}
-              longitude={item.longitude}
-              latitude={item.latitude}
-              anchor="bottom"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                flyToLocation(item.longitude, item.latitude, 10);
-                setPopupInfo(item);
-              }}
-            >
-              <div className="marker">
-                <div className="marker-inner" style={{ color }}>{'📍'}</div>
-              </div>
-            </Marker>
-          );
-        })}
+        {data.map((item, idx) => (
+          <Marker
+            key={idx}
+            longitude={item.longitude}
+            latitude={item.latitude}
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              flyToLocation(item.longitude, item.latitude, 10);
+              setPopupInfo(item);
+            }}
+          >
+            <div className="marker">
+              <div className="marker-inner">📍</div>
+            </div>
+          </Marker>
+        ))}
 
         {popupInfo && (
           <Popup
@@ -292,7 +316,7 @@ const MapContainer = ({ data, onLogout, user }) => {
             onClose={() => setPopupInfo(null)}
             className="popup-container"
           >
-            <MarkerPopup data={popupInfo} />
+            <MarkerPopup data={popupInfo} user={user} />
           </Popup>
         )}
       </Map>

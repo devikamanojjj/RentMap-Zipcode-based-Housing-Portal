@@ -4,17 +4,16 @@
   "description": "React app for visualizing US real estate data with Mapbox",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-map-gl": "^7.0.0",
     "mapbox-gl": "^2.15.0",
     "papaparse": "^5.4.1",
-    "axios": "^1.6.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-map-gl": "^7.1.9"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
     "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.0.0"
+    "@types/react-dom": "^18.0.0",
+    "react-scripts": "5.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
