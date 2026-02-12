@@ -1,3 +1,24 @@
+/* Always-visible sidebar toggle arrow */
+.sidebar-toggle-arrow {
+  position: fixed;
+  z-index: 2000;
+  width: 38px;
+  height: 54px;
+  background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+  color: white;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.13);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  transition: left 0.3s, background 0.2s;
+}
+.sidebar-toggle-arrow:hover {
+  background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
+}
 /* Map controller (bottom right) */
 .map-controller {
   position: fixed;

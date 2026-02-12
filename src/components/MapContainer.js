@@ -1,15 +1,17 @@
 import React, { useState, useRef } from 'react';
+import ZipcodeSheet from './ZipcodeSheet';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
 
 const MapContainer = ({ data, onLogout, user }) => {
     const [showFavDropdown, setShowFavDropdown] = useState(false);
+    const [showOnlyFavs, setShowOnlyFavs] = useState(false);
   const [popupInfo, setPopupInfo] = useState(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12');
   const [searchInput, setSearchInput] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [viewState, setViewState] = useState({
     longitude: -149.8,
     latitude: 61.1,
@@ -96,49 +98,8 @@ const MapContainer = ({ data, onLogout, user }) => {
         <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
 
         <div className="top-right-auth">
-          <span 
-            className="user-heart"
-            title="View favorited zipcodes"
-            style={{ cursor: 'pointer', marginRight: '8px', fontSize: '20px', color: '#e25555' }}
-            onClick={() => setShowFavDropdown((v) => !v)}
-          >
-            &#10084;
-          </span>
           <span className="user-label">{user}</span>
           <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
-          {showFavDropdown && (
-            <div className="fav-dropdown" style={{ position: 'absolute', left: '-200px', top: '0', background: '#fff', border: '1px solid #ccc', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', zIndex: 100, minWidth: '180px', padding: '8px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '6px', color: '#e25555' }}>Favorited Zipcodes</div>
-              {favZipcodes.length === 0 ? (
-                <div style={{ color: '#888', fontSize: '14px' }}>No favorites yet</div>
-              ) : (
-                favZipcodes.map((zipcode, idx) => (
-                  <div
-                    key={zipcode}
-                    style={{ display: 'flex', alignItems: 'center', padding: '4px 0' }}
-                  >
-                    <span
-                      style={{ fontSize: '16px', color: '#e25555', marginRight: '6px', cursor: 'pointer' }}
-                      title="Unfavorite"
-                      onClick={() => {
-                        // Unfavorite without closing dropdown
-                        const updatedFavs = favZipcodes.filter(z => z !== zipcode);
-                        localStorage.setItem(favKey, JSON.stringify(updatedFavs));
-                        setFavZipcodes(updatedFavs);
-                      }}
-                    >❤️</span>
-                    <span
-                      style={{ fontWeight: 'bold', fontSize: '16px', color: '#333', cursor: 'pointer' }}
-                      onClick={() => {
-                        setShowFavDropdown(false);
-                        handleZipcodeSelect(zipcode);
-                      }}
-                    >{zipcode}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
         </div>
 
         <div className="search-box">
@@ -192,90 +153,79 @@ const MapContainer = ({ data, onLogout, user }) => {
         </div>
       </div>
 
-      {/* Sidebar */}
-      <div className={`sidebar ${showSidebar ? 'open' : 'closed'}`}>
-        <div className="sidebar-header">
-          <h3>All Zipcodes ({data.length})</h3>
-          <button 
-            className="toggle-btn" 
-            onClick={() => setShowSidebar(!showSidebar)}
-            title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-          >
-            {showSidebar ? '◀' : '▶'}
-          </button>
+      {/* Sidebar as Sheet View */}
+      <div className={`sidebar ${showSidebar ? 'open' : 'closed'}`} style={{ width: showSidebar ? 700 : 0, minWidth: showSidebar ? 700 : 0, maxWidth: 900, transition: 'width 0.3s, min-width 0.3s', overflow: 'hidden' }}>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <h3 style={{ margin: 0 }}>All Zipcodes ({data.length})</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                cursor: 'pointer',
+                fontSize: '28px',
+                color: showOnlyFavs ? '#e25555' : '#bbb',
+                marginRight: 8,
+                userSelect: 'none',
+                transition: 'color 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                fontWeight: 600
+              }}
+              onClick={() => setShowOnlyFavs(v => !v)}
+              title={showOnlyFavs ? 'Show all zipcodes' : 'Show only favorites'}
+            >
+              {showOnlyFavs ? '❤️' : '🤍'}
+            </span>
+          </div>
         </div>
-        
-        <div className="sidebar-content">
-          {data.map((item, idx) => {
-            const salesStats = item.sales.length > 0 
-              ? item.sales.reduce((acc, s) => acc + s.price, 0) / item.sales.length 
-              : 0;
-            const rentStats = item.rent.length > 0 
-              ? item.rent.filter(r => r.avg_price).reduce((acc, r) => acc + r.avg_price, 0) / item.rent.filter(r => r.avg_price).length
-              : 0;
-
-            const isFavorited = favZipcodes.includes(item.zipcode);
-
-            const handleFavoriteClick = (e) => {
+        <div className="sidebar-content" style={{ overflowX: 'auto', padding: 0 }}>
+          <ZipcodeSheet
+            data={data}
+            favZipcodes={favZipcodes}
+            showOnlyFavs={showOnlyFavs}
+            handleFavoriteClick={(e, item, favZipcodes) => {
               e.stopPropagation();
               let updatedFavs = [];
+              const isFavorited = favZipcodes.includes(item.zipcode);
               if (isFavorited) {
                 updatedFavs = favZipcodes.filter(z => z !== item.zipcode);
               } else {
                 updatedFavs = [...favZipcodes, item.zipcode];
               }
               localStorage.setItem(favKey, JSON.stringify(updatedFavs));
-              setFavZipcodes(updatedFavs); // instant UI update
-            };
-
-            return (
-              <div 
-                key={idx} 
-                className="sidebar-zipcode-item"
-                onClick={() => handleSidebarZipcodeClick(item.zipcode)}
-              >
-                <div className="sidebar-zipcode-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className="sidebar-zipcode-number">📍 {item.zipcode}</span>
-                  <span
-                    className="zipcode-heart"
-                    title={isFavorited ? 'Unfavorite' : 'Favorite'}
-                    style={{ cursor: 'pointer', fontSize: '18px', color: isFavorited ? '#e25555' : '#bbb', marginLeft: '8px', transition: 'color 0.2s' }}
-                    onClick={handleFavoriteClick}
-                  >
-                    {isFavorited ? '❤️' : '🤍'}
-                  </span>
-                </div>
-                <div className="sidebar-zipcode-details">
-                  <div className="sidebar-detail-row">
-                    <span className="detail-label">Location:</span>
-                    <span className="detail-value">{item.latitude.toFixed(2)}, {item.longitude.toFixed(2)}</span>
-                  </div>
-                  <div className="sidebar-detail-row">
-                    <span className="detail-label">Sales Records:</span>
-                    <span className="detail-value">{item.sales.length}</span>
-                  </div>
-                  {salesStats > 0 && (
-                    <div className="sidebar-detail-row">
-                      <span className="detail-label">Avg Sale Price:</span>
-                      <span className="detail-value">${salesStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
-                    </div>
-                  )}
-                  <div className="sidebar-detail-row">
-                    <span className="detail-label">Rent Records:</span>
-                    <span className="detail-value">{item.rent.length}</span>
-                  </div>
-                  {rentStats > 0 && (
-                    <div className="sidebar-detail-row">
-                      <span className="detail-label">Avg Rent:</span>
-                      <span className="detail-value">${rentStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              setFavZipcodes(updatedFavs);
+            }}
+            handleSidebarZipcodeClick={handleSidebarZipcodeClick}
+          />
         </div>
       </div>
+
+      {/* Always-visible sidebar toggle arrow */}
+      <button
+        className="sidebar-toggle-arrow"
+        onClick={() => setShowSidebar(!showSidebar)}
+        title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
+        style={{
+          position: 'fixed',
+          top: '180px',
+          left: showSidebar ? 700 : 0,
+          zIndex: 2000,
+          width: '38px',
+          height: '54px',
+          background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: showSidebar ? '0 8px 8px 0' : '0 8px 8px 0',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.13)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '22px',
+          cursor: 'pointer',
+          transition: 'left 0.3s',
+        }}
+      >
+        {showSidebar ? '◀' : '▶'}
+      </button>
       
       {console.log('Current mapStyle:', mapStyle)}
       <Map
