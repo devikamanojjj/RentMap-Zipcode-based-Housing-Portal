@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import ROITableModal from './ROITableModal';
 import ZipcodeSheet from './ZipcodeSheet';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
@@ -91,8 +92,72 @@ const MapContainer = ({ data, onLogout, user }) => {
     setShowSearchDropdown(false);
   };
 
+  // ROI Table modal state
+  const [roiModalOpen, setRoiModalOpen] = useState(false);
+  const [roiTableData, setRoiTableData] = useState([]);
+  const [roiLoading, setRoiLoading] = useState(false);
+  const [roiError, setRoiError] = useState(null);
+
+
+  // Utility: flatten merged data to flat records for ROI API
+  function flattenDataForROI(mergedData) {
+    const flat = [];
+    mergedData.forEach(item => {
+      if (item.rent && item.rent.length > 0 && item.sales && item.sales.length > 0) {
+        item.rent.forEach(r => {
+          // Find a sales record with the same bedrooms, else use the first sales record
+          let salesRec = item.sales.find(s => s.bedrooms === r.bedrooms) || item.sales[0];
+          // Parse and validate all fields
+          const zipcode = item.zipcode;
+          const monthly_rent = parseFloat(r.avg_price || r.monthly_rent || 0);
+          const sales_price = parseFloat(salesRec && salesRec.price ? salesRec.price : 0);
+          const inventory = parseFloat(r.inventory || 0);
+          // Only push if all required fields are present and > 0
+          if (zipcode && monthly_rent > 0 && sales_price > 0 && inventory > 0) {
+            flat.push({ zipcode, monthly_rent, sales_price, inventory });
+          }
+        });
+      }
+    });
+    console.log('ROI FLATTENED DATA', flat);
+    return flat;
+  }
+
+  // Fetch ROI table data from backend
+  const fetchROITable = async () => {
+    setRoiLoading(true);
+    setRoiError(null);
+    try {
+      const flatData = flattenDataForROI(data);
+      const response = await fetch('/api/roi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(flatData)
+      });
+      const result = await response.json();
+      console.log('ROI API RESPONSE', result);
+      if (result.agg_roi) {
+        const sorted = [...result.agg_roi].sort((a, b) => (b.roi_sumproduct || 0) - (a.roi_sumproduct || 0));
+        setRoiTableData(sorted);
+      } else {
+        setRoiTableData([]);
+      }
+    } catch (err) {
+      setRoiError('Failed to fetch ROI table');
+      setRoiTableData([]);
+    }
+    setRoiLoading(false);
+  };
+
+  const handleShowROIModal = () => {
+    setRoiModalOpen(true);
+    fetchROITable();
+  };
+  const handleCloseROIModal = () => setRoiModalOpen(false);
+
   return (
     <div className="map-container">
+      <ROITableModal open={roiModalOpen} onClose={handleCloseROIModal} roiData={roiTableData} />
       <div className="map-header">
         <h1>RENTMAP-ZIPCODE-BASED HOUSING PORTAL</h1>
         <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
@@ -102,6 +167,7 @@ const MapContainer = ({ data, onLogout, user }) => {
           <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
         </div>
 
+        {/* Search box row */}
         <div className="search-box">
           <input
             type="text"
@@ -137,8 +203,14 @@ const MapContainer = ({ data, onLogout, user }) => {
           )}
         </div>
 
+        {/* Show ROI Table button row */}
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
+          <button className="show-roi-btn" type="button" onClick={handleShowROIModal}>
+            Show ROI Table
+          </button>
+        </div>
 
-
+        {/* Map style toggle group row */}
         <div className="style-toggle-group">
           {mapStyles.map((style) => (
             <button
@@ -271,18 +343,13 @@ const MapContainer = ({ data, onLogout, user }) => {
         )}
       </Map>
 
-      <div className="data-legend">
-        <div className="legend-item">
-          <span className="legend-icon">📍</span>
-          <span>Click on markers to view sales & rental data</span>
-        </div>
-      </div>
+
 
       {/* Map Controller - bottom right */}
       <div className="map-controller">
         <button className="controller-btn" title="Zoom In" onClick={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}>+</button>
         <button className="controller-btn" title="Zoom Out" onClick={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}>-</button>
-        <button className="controller-btn" title="Reset" onClick={() => flyToLocation(-149.8, 61.1, 8)}>&#8634;</button>
+        <button className="controller-btn" title="Reset" onClick={() => { flyToLocation(-149.8, 61.1, 8); setPopupInfo(null); }}>&#8634;</button>
       </div>
     </div>
   );

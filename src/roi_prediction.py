@@ -22,11 +22,25 @@ def calculate_weighted_roi(df):
     )
     return df
 
-def aggregate_roi(df):
-    grouped = df.groupby(['zipcode', 'bedroom_type'])['roi']
-    agg = grouped.agg(['mean', 'median', 'std']).reset_index()
-    agg.columns = ['zipcode', 'bedroom_type', 'roi_mean', 'roi_median', 'roi_std']
-    return agg
+
+def aggregate_roi_sumproduct(df):
+    # Calculate ROI using the requested formula for each zipcode:
+    # (SUMPRODUCT(rent_avg_price*12, rent_inventory) / SUMPRODUCT(sales_price, rent_inventory)) * 100
+    results = []
+    for zipcode, group in df.groupby('zipcode'):
+        rent_avg_price = group['monthly_rent'].fillna(0)
+        rent_inventory = group['inventory'].fillna(0)
+        sales_price = group['sales_price'].fillna(0)
+        # SUMPRODUCT(rent_avg_price*12, rent_inventory)
+        sumproduct_rent = np.sum(rent_avg_price * 12 * rent_inventory)
+        # SUMPRODUCT(sales_price, rent_inventory)
+        sumproduct_sales = np.sum(sales_price * rent_inventory)
+        roi = (sumproduct_rent / sumproduct_sales) * 100 if sumproduct_sales > 0 else np.nan
+        results.append({
+            'zipcode': zipcode,
+            'roi_sumproduct': roi
+        })
+    return pd.DataFrame(results)
 
 def predict_rent_and_roi(df):
     results = []
@@ -61,7 +75,7 @@ def process_real_estate_data(df):
     df = calculate_annual_rent(df)
     df = calculate_base_roi(df)
     df = calculate_weighted_roi(df)
-    agg_roi = aggregate_roi(df)
+    agg_roi = aggregate_roi_sumproduct(df)
     pred_df = predict_rent_and_roi(df)
     ranked_zipcodes = rank_zipcodes_by_predicted_roi(pred_df)
     return agg_roi, pred_df, ranked_zipcodes
