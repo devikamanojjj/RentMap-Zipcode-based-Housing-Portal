@@ -12,6 +12,7 @@ __pycache__/
 src/components/REACT_APP_MAPBOX_TOKEN
 .venv/
 .python-version
+replacements.txt
 
 # Python tooling caches
 .pytest_cache/
