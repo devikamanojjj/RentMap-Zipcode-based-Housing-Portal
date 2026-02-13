@@ -10,6 +10,13 @@ __pycache__/
 # Environment files
 .env
 src/components/REACT_APP_MAPBOX_TOKEN
+.venv/
+.python-version
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Build outputs
 build/

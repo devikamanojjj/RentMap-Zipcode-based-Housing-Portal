@@ -1,12 +1,4 @@
-# Add a 'date' column for sorting
-if 'sales_month_year' in sales_rent_df.columns and 'rent_month_year' in sales_rent_df.columns:
-    sales_rent_df['date'] = sales_rent_df['sales_month_year'].fillna(sales_rent_df['rent_month_year'])
-elif 'sales_month_year' in sales_rent_df.columns:
-    sales_rent_df['date'] = sales_rent_df['sales_month_year']
-elif 'rent_month_year' in sales_rent_df.columns:
-    sales_rent_df['date'] = sales_rent_df['rent_month_year']
-
-# ...existing code...
+"""Prepare ROI data and merge into latlong CSV."""
 import pandas as pd
 from roi_prediction import process_real_estate_data
 

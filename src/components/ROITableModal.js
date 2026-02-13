@@ -8,7 +8,6 @@ const ROITableModal = ({ open, onClose, roiData }) => {
       <div className="roi-modal-content">
         <button className="roi-modal-close" onClick={onClose}>×</button>
         <h2>ROI Table (Descending Order)</h2>
-        {roiData.length === 0 && <div style={{color: '#d32f2f', marginBottom: 12}}>No ROI data available.</div>}
         <div className="roi-table-wrapper">
           <table className="roi-table">
             <thead>

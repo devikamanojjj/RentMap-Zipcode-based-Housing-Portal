@@ -1,5 +1,5 @@
 import React from 'react';
-import Map, { Source, Layer } from 'react-map-gl';
+import Map from 'react-map-gl';
 
 const USMapBackground = () => {
   return (

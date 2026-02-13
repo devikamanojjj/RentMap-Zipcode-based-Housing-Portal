@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import './MarkerPopup.css';
 
 const MarkerPopup = ({ data, user }) => {
   const [activeTab, setActiveTab] = useState('sales');
   // Favoriting logic (same as MapContainer)
   const favKey = `favZipcodes_${user || 'default'}`;
-  const getInitialFavs = () => {
+  const getInitialFavs = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem(favKey)) || [];
     } catch (e) { return []; }
-  };
+  }, [favKey]);
   const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
   // Sync with localStorage changes (from sidebar, popup, dropdown, etc.)
   React.useEffect(() => {
     const handler = () => setFavZipcodes(getInitialFavs());
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, [user]);
+  }, [getInitialFavs]);
   // Also update if popup is open and localStorage changes (e.g. sidebar click)
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -27,7 +27,7 @@ const MarkerPopup = ({ data, user }) => {
       });
     }, 500);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [getInitialFavs]);
   const isFavorited = favZipcodes.includes(data.zipcode);
   const handleFavoriteClick = (e) => {
     e.stopPropagation();

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import ROITableModal from './ROITableModal';
 import ZipcodeSheet from './ZipcodeSheet';
 import Map, { Marker, Popup } from 'react-map-gl';
@@ -6,8 +6,7 @@ import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
 
 const MapContainer = ({ data, onLogout, user }) => {
-    const [showFavDropdown, setShowFavDropdown] = useState(false);
-    const [showOnlyFavs, setShowOnlyFavs] = useState(false);
+  const [showOnlyFavs, setShowOnlyFavs] = useState(false);
   const [popupInfo, setPopupInfo] = useState(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12');
   const [searchInput, setSearchInput] = useState('');
@@ -22,11 +21,11 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   // Favorited zipcodes state for instant UI update
   const favKey = `favZipcodes_${user}`;
-  const getInitialFavs = () => {
+  const getInitialFavs = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem(favKey)) || [];
     } catch (e) { return []; }
-  };
+  }, [favKey]);
   const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
 
   // Listen for localStorage changes (if user favorites elsewhere)
@@ -36,7 +35,7 @@ const MapContainer = ({ data, onLogout, user }) => {
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, [user]);
+  }, [getInitialFavs]);
 
 
   // Use the provided Mapbox token directly for reliability
@@ -45,7 +44,7 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   const mapStyles = [
     { value: 'mapbox://styles/mapbox/streets-v12', label: 'STREET' },
-    { value: 'mapbox://styles/mapbox/satellite-v9', label: 'SATELLITE' },
+    { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: 'SATELLITE' },
     { value: 'mapbox://styles/mapbox/light-v11', label: 'LIGHT' }
   ];
 
@@ -95,58 +94,26 @@ const MapContainer = ({ data, onLogout, user }) => {
   // ROI Table modal state
   const [roiModalOpen, setRoiModalOpen] = useState(false);
   const [roiTableData, setRoiTableData] = useState([]);
-  const [roiLoading, setRoiLoading] = useState(false);
-  const [roiError, setRoiError] = useState(null);
-
-
-  // Utility: flatten merged data to flat records for ROI API
-  function flattenDataForROI(mergedData) {
-    const flat = [];
-    mergedData.forEach(item => {
-      if (item.rent && item.rent.length > 0 && item.sales && item.sales.length > 0) {
-        item.rent.forEach(r => {
-          // Find a sales record with the same bedrooms, else use the first sales record
-          let salesRec = item.sales.find(s => s.bedrooms === r.bedrooms) || item.sales[0];
-          // Parse and validate all fields
-          const zipcode = item.zipcode;
-          const monthly_rent = parseFloat(r.avg_price || r.monthly_rent || 0);
-          const sales_price = parseFloat(salesRec && salesRec.price ? salesRec.price : 0);
-          const inventory = parseFloat(r.inventory || 0);
-          // Only push if all required fields are present and > 0
-          if (zipcode && monthly_rent > 0 && sales_price > 0 && inventory > 0) {
-            flat.push({ zipcode, monthly_rent, sales_price, inventory });
-          }
-        });
-      }
-    });
-    console.log('ROI FLATTENED DATA', flat);
-    return flat;
-  }
 
   // Fetch ROI table data from backend
   const fetchROITable = async () => {
-    setRoiLoading(true);
-    setRoiError(null);
     try {
-      const flatData = flattenDataForROI(data);
       const response = await fetch('/api/roi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(flatData)
+        body: JSON.stringify(data)
       });
       const result = await response.json();
-      console.log('ROI API RESPONSE', result);
       if (result.agg_roi) {
+        // Sort descending by roi_sumproduct
         const sorted = [...result.agg_roi].sort((a, b) => (b.roi_sumproduct || 0) - (a.roi_sumproduct || 0));
         setRoiTableData(sorted);
       } else {
         setRoiTableData([]);
       }
     } catch (err) {
-      setRoiError('Failed to fetch ROI table');
       setRoiTableData([]);
     }
-    setRoiLoading(false);
   };
 
   const handleShowROIModal = () => {
@@ -299,7 +266,6 @@ const MapContainer = ({ data, onLogout, user }) => {
         {showSidebar ? '◀' : '▶'}
       </button>
       
-      {console.log('Current mapStyle:', mapStyle)}
       <Map
         key={mapStyle}
         ref={mapRef}
@@ -349,7 +315,7 @@ const MapContainer = ({ data, onLogout, user }) => {
       <div className="map-controller">
         <button className="controller-btn" title="Zoom In" onClick={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}>+</button>
         <button className="controller-btn" title="Zoom Out" onClick={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}>-</button>
-        <button className="controller-btn" title="Reset" onClick={() => { flyToLocation(-149.8, 61.1, 8); setPopupInfo(null); }}>&#8634;</button>
+        <button className="controller-btn" title="Reset" onClick={handleResetMap}>&#8634;</button>
       </div>
     </div>
   );

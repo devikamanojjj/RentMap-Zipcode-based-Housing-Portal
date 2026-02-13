@@ -1,13 +1,12 @@
 const { spawn } = require('child_process');
 
-// Start the backend (Flask)
-const backend = spawn('python', ['backend/app.py'], {
+// Use shell commands to avoid Windows spawn EINVAL
+const backend = spawn('npm run start:backend', {
   stdio: 'inherit',
   shell: true
 });
 
-// Start the frontend (React)
-const frontend = spawn('npm', ['run', 'start'], {
+const frontend = spawn('npm run start:frontend', {
   stdio: 'inherit',
   shell: true
 });
