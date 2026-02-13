@@ -34,18 +34,22 @@ const LoginRegister = ({ onAuth }) => {
         <h2>{isLogin ? 'Login' : 'Register'}</h2>
         <form onSubmit={handleSubmit} autoComplete="off">
           <input
+            id={isLogin ? 'login-username' : 'register-username'}
+            name="username"
             type="text"
             placeholder="Username"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            autoComplete="off"
+            autoComplete="username"
           />
           <input
+            id={isLogin ? 'login-password' : 'register-password'}
+            name="password"
             type="password"
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            autoComplete="new-password"
+            autoComplete={isLogin ? 'current-password' : 'new-password'}
           />
           {error && <div className="error">{error}</div>}
           <button type="submit">{isLogin ? 'Login' : 'Register'}</button>

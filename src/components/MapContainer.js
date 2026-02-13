@@ -38,14 +38,14 @@ const MapContainer = ({ data, onLogout, user }) => {
   }, [getInitialFavs]);
 
 
-  // Use the provided Mapbox token directly for reliability
-  // Use the official Mapbox demo token for troubleshooting
-  const MAPBOX_TOKEN = "REDACTED";
+  // Read Mapbox token from env to avoid committing secrets
+  const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+  const [mapError, setMapError] = useState(!MAPBOX_TOKEN ? 'Mapbox token is missing. Add REACT_APP_MAPBOX_TOKEN in .env and restart.' : '');
 
   const mapStyles = [
     { value: 'mapbox://styles/mapbox/streets-v12', label: 'STREET' },
-    { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: 'SATELLITE' },
-    { value: 'mapbox://styles/mapbox/light-v11', label: 'LIGHT' }
+    { value: 'mapbox://styles/mapbox/satellite-v9', label: 'SATELLITE' },
+    { value: 'mapbox://styles/mapbox/light-v10', label: 'LIGHT' }
   ];
 
   const flyToLocation = (longitude, latitude, zoom = 10) => {
@@ -266,6 +266,11 @@ const MapContainer = ({ data, onLogout, user }) => {
         {showSidebar ? '◀' : '▶'}
       </button>
       
+      {mapError && (
+        <div style={{ position: 'absolute', top: 160, left: 20, zIndex: 2000, background: '#fff3cd', color: '#7a5c00', border: '1px solid #ffeeba', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
+          {mapError}
+        </div>
+      )}
       <Map
         key={mapStyle}
         ref={mapRef}
@@ -274,6 +279,8 @@ const MapContainer = ({ data, onLogout, user }) => {
         style={{ width: '100%', height: '100%' }}
         mapStyle={mapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
+        onError={(e) => setMapError(e?.error?.message || 'Map failed to load.')}
+        onLoad={() => setMapError('')}
       >
         {data.map((item, idx) => (
           <Marker
