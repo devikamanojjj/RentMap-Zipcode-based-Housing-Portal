@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import ROITableModal from './ROITableModal';
-import ZipcodeSheet from './ZipcodeSheet';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
+import MapHeader from './MapHeader';
+import SidebarPanel from './SidebarPanel';
+import SidebarToggleArrow from './SidebarToggleArrow';
+import MapControls from './MapControls';
 
 const MapContainer = ({ data, onLogout, user }) => {
   const [showOnlyFavs, setShowOnlyFavs] = useState(false);
@@ -185,169 +188,64 @@ const MapContainer = ({ data, onLogout, user }) => {
   return (
     <div className="map-container">
       <ROITableModal open={roiModalOpen} onClose={handleCloseROIModal} roiData={roiTableData} />
-      <div className="map-header">
-        <h1>RENTMAP-ZIPCODE-BASED HOUSING PORTAL</h1>
-        <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
-
-        <div className="top-right-auth">
-          <span className="user-label">{user}</span>
-          <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
-        </div>
-
-        {/* Search box row */}
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="🔍 SEARCH ZIPCODE..."
-            value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              setShowSearchDropdown(true);
-            }}
-            onFocus={() => setShowSearchDropdown(true)}
-            className="search-input"
-          />
-          {showSearchDropdown && filteredZipcodes.length > 0 && (
-            <div className="search-dropdown">
-              {filteredZipcodes.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="dropdown-item"
-                  onClick={() => handleZipcodeSelect(item.zipcode)}
-                >
-                  <div className="dropdown-zipcode">{item.zipcode}</div>
-                  <div className="dropdown-coords">
-                    {item.latitude.toFixed(2)}, {item.longitude.toFixed(2)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {showSearchDropdown && searchInput && filteredZipcodes.length === 0 && (
-            <div className="search-dropdown no-results">
-              No zipcodes found
-            </div>
-          )}
-        </div>
-
-        {/* Show ROI Table button row */}
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
-          <button className="show-roi-btn" type="button" onClick={handleShowROIModal}>
-            Show ROI Table
-          </button>
-        </div>
-
-        {/* Map style toggle group row */}
-        <div className="style-toggle-group">
-          {mapStyles.map((style) => (
-            <button
-              key={style.value}
-              className={`style-toggle-btn${mapStyle === style.value ? ' active' : ''}`}
-              onClick={() => style.value && setMapStyle(style.value)}
-              type="button"
-            >
-              {style.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Sidebar as Sheet View */}
-      <div className={`sidebar ${showSidebar ? 'open' : 'closed'}`} style={{ width: showSidebar ? 700 : 0, minWidth: showSidebar ? 700 : 0, maxWidth: 900, transition: 'width 0.3s, min-width 0.3s', overflow: 'hidden' }}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>All Zipcodes ({data.length})</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              className={`compare-btn${compareMode ? ' active' : ''}`}
-              type="button"
-              onClick={handleToggleCompareMode}
-              disabled={!compareMode && favZipcodes.length === 0}
-              title={compareMode ? 'Exit compare mode' : 'Compare selected favorite zipcodes'}
-            >
-              {compareMode ? `Comparing (${compareZipcodes.length})` : 'Compare'}
-            </button>
-            <span
-              style={{
-                cursor: 'pointer',
-                fontSize: '28px',
-                color: showOnlyFavs ? '#e25555' : '#bbb',
-                marginRight: 8,
-                userSelect: 'none',
-                transition: 'color 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                fontWeight: 600
-              }}
-              onClick={() => setShowOnlyFavs(v => !v)}
-              title={showOnlyFavs ? 'Show all zipcodes' : 'Show only favorites'}
-            >
-              {showOnlyFavs ? '❤️' : '🤍'}
-            </span>
-          </div>
-        </div>
-        <div className="sidebar-content" style={{ overflowX: 'auto', padding: 0 }}>
-          <ZipcodeSheet
-            data={data}
-            favZipcodes={favZipcodes}
-            showOnlyFavs={showOnlyFavs}
-            handleFavoriteClick={(e, item, favZipcodes) => {
-              e.stopPropagation();
-              let updatedFavs = [];
-              const isFavorited = favZipcodes.includes(item.zipcode);
-              if (isFavorited) {
-                updatedFavs = favZipcodes.filter(z => z !== item.zipcode);
-              } else {
-                updatedFavs = [...favZipcodes, item.zipcode];
-              }
-              localStorage.setItem(favKey, JSON.stringify(updatedFavs));
-              setFavZipcodes(updatedFavs);
-              setCompareZipcodes(prev => prev.filter(zipcode => updatedFavs.includes(zipcode)));
-            }}
-            handleSidebarZipcodeClick={handleSidebarZipcodeClick}
-            compareMode={compareMode}
-            compareZipcodes={compareZipcodes}
-            onToggleCompareZipcode={(zipcode) => {
-              if (!favZipcodes.includes(zipcode)) return;
-              setCompareZipcodes(prev => (
-                prev.includes(zipcode)
-                  ? prev.filter(z => z !== zipcode)
-                  : [...prev, zipcode]
-              ));
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Always-visible sidebar toggle arrow */}
-      <button
-        className="sidebar-toggle-arrow"
-        onClick={() => setShowSidebar(!showSidebar)}
-        title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-        style={{
-          position: 'fixed',
-          top: '180px',
-          left: showSidebar ? 700 : 0,
-          zIndex: 2000,
-          width: '38px',
-          height: '54px',
-          background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-          color: 'white',
-          border: 'none',
-          borderRadius: showSidebar ? '0 8px 8px 0' : '0 8px 8px 0',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.13)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '22px',
-          cursor: 'pointer',
-          transition: 'left 0.3s',
+      <MapHeader
+        user={user}
+        onLogout={onLogout}
+        searchInput={searchInput}
+        onSearchInputChange={(value) => {
+          setSearchInput(value);
+          setShowSearchDropdown(true);
         }}
-      >
-        {showSidebar ? '◀' : '▶'}
-      </button>
+        onSearchFocus={() => setShowSearchDropdown(true)}
+        showSearchDropdown={showSearchDropdown}
+        filteredZipcodes={filteredZipcodes}
+        onZipcodeSelect={handleZipcodeSelect}
+        onShowRoiModal={handleShowROIModal}
+        mapStyles={mapStyles}
+        mapStyle={mapStyle}
+        onMapStyleChange={setMapStyle}
+      />
+
+      <SidebarPanel
+        data={data}
+        showSidebar={showSidebar}
+        compareMode={compareMode}
+        compareZipcodes={compareZipcodes}
+        favZipcodes={favZipcodes}
+        showOnlyFavs={showOnlyFavs}
+        onToggleCompareMode={handleToggleCompareMode}
+        onToggleShowOnlyFavs={() => setShowOnlyFavs(v => !v)}
+        onFavoriteClick={(e, item, currentFavZipcodes) => {
+          e.stopPropagation();
+          let updatedFavs = [];
+          const isFavorited = currentFavZipcodes.includes(item.zipcode);
+          if (isFavorited) {
+            updatedFavs = currentFavZipcodes.filter(z => z !== item.zipcode);
+          } else {
+            updatedFavs = [...currentFavZipcodes, item.zipcode];
+          }
+          localStorage.setItem(favKey, JSON.stringify(updatedFavs));
+          setFavZipcodes(updatedFavs);
+          setCompareZipcodes(prev => prev.filter(zipcode => updatedFavs.includes(zipcode)));
+        }}
+        onSidebarZipcodeClick={handleSidebarZipcodeClick}
+        onToggleCompareZipcode={(zipcode) => {
+          if (!favZipcodes.includes(zipcode)) return;
+          setCompareZipcodes(prev => (
+            prev.includes(zipcode)
+              ? prev.filter(z => z !== zipcode)
+              : [...prev, zipcode]
+          ));
+        }}
+      />
+
+      <SidebarToggleArrow
+        showSidebar={showSidebar}
+        onToggle={() => setShowSidebar(!showSidebar)}
+      />
       
       {mapError && (
-        <div style={{ position: 'absolute', top: 160, left: 20, zIndex: 2000, background: '#fff3cd', color: '#7a5c00', border: '1px solid #ffeeba', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
+        <div className="map-error-banner">
           {mapError}
         </div>
       )}
@@ -395,15 +293,11 @@ const MapContainer = ({ data, onLogout, user }) => {
           </Popup>
         )}
       </Map>
-
-
-
-      {/* Map Controller - bottom right */}
-      <div className="map-controller">
-        <button className="controller-btn" title="Zoom In" onClick={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}>+</button>
-        <button className="controller-btn" title="Zoom Out" onClick={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}>-</button>
-        <button className="controller-btn" title="Reset" onClick={handleResetMap}>&#8634;</button>
-      </div>
+      <MapControls
+        onZoomIn={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}
+        onZoomOut={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}
+        onReset={handleResetMap}
+      />
     </div>
   );
 };
