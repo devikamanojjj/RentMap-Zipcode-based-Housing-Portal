@@ -1,13 +1,24 @@
 import React from 'react';
 
-const ZipcodeSheet = ({ data, favZipcodes, showOnlyFavs, handleFavoriteClick, handleSidebarZipcodeClick }) => {
+const ZipcodeSheet = ({
+  data,
+  favZipcodes,
+  showOnlyFavs,
+  handleFavoriteClick,
+  handleSidebarZipcodeClick,
+  compareMode,
+  compareZipcodes,
+  onToggleCompareZipcode
+}) => {
   const filteredData = showOnlyFavs ? data.filter(item => favZipcodes.includes(item.zipcode)) : data;
+  const showCompareColumn = compareMode && showOnlyFavs;
 
   return (
     <div className="zipcode-sheet-container">
       <table className="zipcode-sheet-table">
         <thead>
           <tr>
+            {showCompareColumn && <th>Compare</th>}
             <th>Favorite</th>
             <th>Zipcode</th>
             <th>Sales Records</th>
@@ -26,6 +37,19 @@ const ZipcodeSheet = ({ data, favZipcodes, showOnlyFavs, handleFavoriteClick, ha
               : 0;
             return (
               <tr key={item.zipcode} onClick={() => handleSidebarZipcodeClick(item.zipcode)} style={{ cursor: 'pointer' }}>
+                {showCompareColumn && (
+                  <td
+                    onClick={e => e.stopPropagation()}
+                    style={{ textAlign: 'center' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={compareZipcodes.includes(item.zipcode)}
+                      disabled={!favZipcodes.includes(item.zipcode)}
+                      onChange={() => onToggleCompareZipcode(item.zipcode)}
+                    />
+                  </td>
+                )}
                 <td onClick={e => { e.stopPropagation(); handleFavoriteClick(e, item, favZipcodes); }} style={{ textAlign: 'center' }}>
                   <span style={{ fontSize: '18px', color: favZipcodes.includes(item.zipcode) ? '#e25555' : '#bbb', cursor: 'pointer' }}>
                     {favZipcodes.includes(item.zipcode) ? '❤️' : '🤍'}

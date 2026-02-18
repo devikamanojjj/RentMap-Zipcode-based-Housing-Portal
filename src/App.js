@@ -21,7 +21,7 @@ function App() {
         const latLongText = await latLongResponse.text();
         const latLongData = Papa.parse(latLongText, { header: true });
 
-        const salesRentResponse = await fetch('/sales_rent_result 1.csv');
+        const salesRentResponse = await fetch('/sales_rent_result_1.csv');
         const salesRentText = await salesRentResponse.text();
         const salesRentData = Papa.parse(salesRentText, { header: true });
 

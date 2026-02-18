@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import ROITableModal from './ROITableModal';
 import ZipcodeSheet from './ZipcodeSheet';
 import Map, { Marker, Popup } from 'react-map-gl';
@@ -7,6 +7,8 @@ import MarkerPopup from './MarkerPopup';
 
 const MapContainer = ({ data, onLogout, user }) => {
   const [showOnlyFavs, setShowOnlyFavs] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareZipcodes, setCompareZipcodes] = useState([]);
   const [popupInfo, setPopupInfo] = useState(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12');
   const [searchInput, setSearchInput] = useState('');
@@ -36,6 +38,29 @@ const MapContainer = ({ data, onLogout, user }) => {
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
   }, [getInitialFavs]);
+
+  useEffect(() => {
+    setCompareZipcodes(prev => prev.filter(zipcode => favZipcodes.includes(zipcode)));
+  }, [favZipcodes]);
+
+  useEffect(() => {
+    if (!showOnlyFavs && compareMode) {
+      setCompareMode(false);
+    }
+  }, [showOnlyFavs, compareMode]);
+
+  const filteredMapData = useMemo(() => {
+    if (compareMode && showOnlyFavs) {
+      return data.filter(item => compareZipcodes.includes(item.zipcode));
+    }
+    return data;
+  }, [compareMode, compareZipcodes, data, showOnlyFavs]);
+
+  useEffect(() => {
+    if (popupInfo && !filteredMapData.some(item => item.zipcode === popupInfo.zipcode)) {
+      setPopupInfo(null);
+    }
+  }, [filteredMapData, popupInfo]);
 
 
   // Read Mapbox token from env to avoid committing secrets
@@ -84,6 +109,19 @@ const MapContainer = ({ data, onLogout, user }) => {
     handleZipcodeSelect(zipcode);
   };
 
+  const handleToggleCompareMode = () => {
+    if (compareMode) {
+      setCompareMode(false);
+      return;
+    }
+    setShowOnlyFavs(true);
+    setCompareMode(true);
+    setCompareZipcodes(prev => {
+      const stillValid = prev.filter(zipcode => favZipcodes.includes(zipcode));
+      return stillValid.length > 0 ? stillValid : [...favZipcodes];
+    });
+  };
+
   const handleResetMap = () => {
     flyToLocation(-149.8, 61.1, 8);
     setPopupInfo(null);
@@ -95,13 +133,35 @@ const MapContainer = ({ data, onLogout, user }) => {
   const [roiModalOpen, setRoiModalOpen] = useState(false);
   const [roiTableData, setRoiTableData] = useState([]);
 
+
+  // Prepare data in the format expected by the backend ROI calculation
+  function prepareROIData(data) {
+    const rows = [];
+    data.forEach(item => {
+      // For each rent entry, pair with the latest sales price for that zipcode
+      const salesPrice = item.sales && item.sales.length > 0 ? item.sales[item.sales.length - 1].price : null;
+      if (item.rent && item.rent.length > 0) {
+        item.rent.forEach(rentEntry => {
+          rows.push({
+            zipcode: item.zipcode,
+            monthly_rent: rentEntry.avg_price,
+            inventory: rentEntry.inventory,
+            sales_price: salesPrice
+          });
+        });
+      }
+    });
+    return rows;
+  }
+
   // Fetch ROI table data from backend
   const fetchROITable = async () => {
     try {
+      const roiInput = prepareROIData(data);
       const response = await fetch('/api/roi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(roiInput)
       });
       const result = await response.json();
       if (result.agg_roi) {
@@ -197,6 +257,15 @@ const MapContainer = ({ data, onLogout, user }) => {
         <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <h3 style={{ margin: 0 }}>All Zipcodes ({data.length})</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              className={`compare-btn${compareMode ? ' active' : ''}`}
+              type="button"
+              onClick={handleToggleCompareMode}
+              disabled={!compareMode && favZipcodes.length === 0}
+              title={compareMode ? 'Exit compare mode' : 'Compare selected favorite zipcodes'}
+            >
+              {compareMode ? `Comparing (${compareZipcodes.length})` : 'Compare'}
+            </button>
             <span
               style={{
                 cursor: 'pointer',
@@ -232,8 +301,19 @@ const MapContainer = ({ data, onLogout, user }) => {
               }
               localStorage.setItem(favKey, JSON.stringify(updatedFavs));
               setFavZipcodes(updatedFavs);
+              setCompareZipcodes(prev => prev.filter(zipcode => updatedFavs.includes(zipcode)));
             }}
             handleSidebarZipcodeClick={handleSidebarZipcodeClick}
+            compareMode={compareMode}
+            compareZipcodes={compareZipcodes}
+            onToggleCompareZipcode={(zipcode) => {
+              if (!favZipcodes.includes(zipcode)) return;
+              setCompareZipcodes(prev => (
+                prev.includes(zipcode)
+                  ? prev.filter(z => z !== zipcode)
+                  : [...prev, zipcode]
+              ));
+            }}
           />
         </div>
       </div>
@@ -282,7 +362,7 @@ const MapContainer = ({ data, onLogout, user }) => {
         onError={(e) => setMapError(e?.error?.message || 'Map failed to load.')}
         onLoad={() => setMapError('')}
       >
-        {data.map((item, idx) => (
+        {filteredMapData.map((item, idx) => (
           <Marker
             key={idx}
             longitude={item.longitude}
