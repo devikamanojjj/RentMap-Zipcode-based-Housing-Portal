@@ -173,6 +173,7 @@ const MapContainer = ({ data, onLogout, user }) => {
   // ROI Table modal state
   const [roiModalOpen, setRoiModalOpen] = useState(false);
   const [roiTableData, setRoiTableData] = useState([]);
+  const [roiByZipcode, setRoiByZipcode] = useState({});
 
 
   // Prepare data in the format expected by the backend ROI calculation
@@ -223,11 +224,56 @@ const MapContainer = ({ data, onLogout, user }) => {
 
       const sorted = normalized.sort((a, b) => (b.roi_sumproduct || 0) - (a.roi_sumproduct || 0));
       setRoiTableData(sorted);
+      
+      // Create zipcode -> ROI lookup map
+      const roiMap = {};
+      normalized.forEach((row) => {
+        roiMap[row.zipcode] = row.roi_sumproduct;
+      });
+      setRoiByZipcode(roiMap);
     } catch (err) {
       console.error('ROI table fetch failed:', err);
       setRoiTableData([]);
+      setRoiByZipcode({});
     }
   };
+
+  // Fetch ROI data on component mount
+  useEffect(() => {
+    if (data && data.length > 0) {
+      fetchROITable();
+    }
+  }, [data]);
+
+  // Get color based on ROI value (blue gradient)
+  const getMarkerColor = useCallback((zipcode) => {
+    const roi = roiByZipcode[normalizeZipcode(zipcode)];
+    
+    if (roi == null) {
+      return '#9E9E9E'; // Grey for null values
+    }
+
+    // Get all valid ROI values for normalization
+    const validRois = Object.values(roiByZipcode).filter(r => r != null);
+    if (validRois.length === 0) return '#9E9E9E';
+
+    const minRoi = Math.min(...validRois);
+    const maxRoi = Math.max(...validRois);
+    
+    if (maxRoi === minRoi) {
+      return '#1976D2'; // Vibrant medium blue if all ROIs are the same
+    }
+
+    // Normalize ROI to 0-1 range
+    const normalized = (roi - minRoi) / (maxRoi - minRoi);
+    
+    // Very distinct blue gradient: very light blue (#BBDEFB) to very dark blue (#0D47A1)
+    const r = Math.round(187 - (187 - 13) * normalized);
+    const g = Math.round(222 - (222 - 71) * normalized);
+    const b = Math.round(251 - (251 - 161) * normalized);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  }, [roiByZipcode, normalizeZipcode]);
 
   const handleShowROIModal = () => {
     setRoiModalOpen(true);
@@ -306,23 +352,50 @@ const MapContainer = ({ data, onLogout, user }) => {
         onError={(e) => setMapError(e?.error?.message || 'Map failed to load.')}
         onLoad={() => setMapError('')}
       >
-        {filteredMapData.map((item, idx) => (
-          <Marker
-            key={idx}
-            longitude={item.longitude}
-            latitude={item.latitude}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              flyToLocation(item.longitude, item.latitude, 10);
-              setPopupInfo(item);
-            }}
-          >
-            <div className="marker">
-              <div className="marker-inner">📍</div>
-            </div>
-          </Marker>
-        ))}
+        {filteredMapData.map((item, idx) => {
+          const markerColor = getMarkerColor(item.zipcode);
+          const isNull = markerColor === '#9E9E9E';
+          return (
+            <Marker
+              key={idx}
+              longitude={item.longitude}
+              latitude={item.latitude}
+              anchor="bottom"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                flyToLocation(item.longitude, item.latitude, 10);
+                setPopupInfo(item);
+              }}
+            >
+              <div className="marker">
+                <svg
+                  width="32"
+                  height="42"
+                  viewBox="0 0 24 36"
+                  className="marker-pin"
+                  style={{
+                    filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.3))'
+                  }}
+                >
+                  {/* Pin body */}
+                  <path
+                    d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 18 9 18s9-11.25 9-18c0-4.97-4.03-9-9-9z"
+                    fill={markerColor}
+                    stroke={isNull ? '#666' : 'rgba(0,0,0,0.2)'}
+                    strokeWidth={isNull ? '1.5' : '0.5'}
+                  />
+                  {/* Inner circle */}
+                  <circle
+                    cx="12"
+                    cy="9"
+                    r="3.5"
+                    fill="rgba(255,255,255,0.9)"
+                  />
+                </svg>
+              </div>
+            </Marker>
+          );
+        })}
 
         {popupInfo && (
           <Popup

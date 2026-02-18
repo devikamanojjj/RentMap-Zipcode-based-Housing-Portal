@@ -329,15 +329,12 @@
   animation: bounce 0.6s ease-in-out;
 }
 
-.marker-inner {
-  font-size: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.marker-pin {
+  display: block;
   transition: transform 0.2s ease;
 }
 
-.marker:hover .marker-inner {
+.marker:hover .marker-pin {
   transform: scale(1.2);
 }
 

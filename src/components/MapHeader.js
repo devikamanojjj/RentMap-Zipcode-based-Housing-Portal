@@ -58,7 +58,7 @@ const MapHeader = ({
 
       <div className="roi-btn-row">
         <button className="show-roi-btn" type="button" onClick={onShowRoiModal}>
-          Show ROI Table
+          ROI TABLE
         </button>
       </div>
 
