@@ -1,46 +1,17 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import './MarkerPopup.css';
 
-const MarkerPopup = ({ data, user }) => {
+const MarkerPopup = ({ data, favZipcodes, onToggleFavorite }) => {
   const [activeTab, setActiveTab] = useState('sales');
-  // Favoriting logic (same as MapContainer)
-  const favKey = `favZipcodes_${user || 'default'}`;
-  const getInitialFavs = useCallback(() => {
-    try {
-      return JSON.parse(localStorage.getItem(favKey)) || [];
-    } catch (e) { return []; }
-  }, [favKey]);
-  const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
-  // Sync with localStorage changes (from sidebar, popup, dropdown, etc.)
-  React.useEffect(() => {
-    const handler = () => setFavZipcodes(getInitialFavs());
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, [getInitialFavs]);
-  // Also update if popup is open and localStorage changes (e.g. sidebar click)
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      const favs = getInitialFavs();
-      setFavZipcodes(prev => {
-        if (JSON.stringify(prev) !== JSON.stringify(favs)) return favs;
-        return prev;
-      });
-    }, 500);
-    return () => clearInterval(interval);
-  }, [getInitialFavs]);
-  const isFavorited = favZipcodes.includes(data.zipcode);
-  const handleFavoriteClick = (e) => {
+  const normalizedZipcode = String(data.zipcode);
+  const isFavorited = favZipcodes.includes(normalizedZipcode);
+  const handleFavoriteClick = async (e) => {
     e.stopPropagation();
-    let updatedFavs = [];
-    if (isFavorited) {
-      updatedFavs = favZipcodes.filter(z => z !== data.zipcode);
-    } else {
-      updatedFavs = [...favZipcodes, data.zipcode];
+    try {
+      await onToggleFavorite(normalizedZipcode);
+    } catch (err) {
+      // noop; keep popup interactive even if backend is unavailable
     }
-    localStorage.setItem(favKey, JSON.stringify(updatedFavs));
-    setFavZipcodes(updatedFavs);
-    // Trigger storage event for cross-component sync
-    window.dispatchEvent(new Event('storage'));
   };
 
   const formatCurrency = (value) => {

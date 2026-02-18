@@ -20,7 +20,7 @@ const ROITableModal = ({ open, onClose, roiData }) => {
               {roiData.map((row) => (
                 <tr key={row.zipcode}>
                   <td>{row.zipcode}</td>
-                  <td>{row.roi_sumproduct ? row.roi_sumproduct.toFixed(2) : '-'}</td>
+                  <td>{row.roi_sumproduct != null ? Number(row.roi_sumproduct).toFixed(2) : '-'}</td>
                 </tr>
               ))}
             </tbody>

@@ -10,7 +10,10 @@ const ZipcodeSheet = ({
   compareZipcodes,
   onToggleCompareZipcode
 }) => {
-  const filteredData = showOnlyFavs ? data.filter(item => favZipcodes.includes(item.zipcode)) : data;
+  const normalizeZipcode = (zipcode) => String(zipcode ?? '').trim();
+  const filteredData = showOnlyFavs
+    ? data.filter(item => favZipcodes.includes(normalizeZipcode(item.zipcode)))
+    : data;
   const showCompareColumn = compareMode && showOnlyFavs;
 
   return (
@@ -44,15 +47,15 @@ const ZipcodeSheet = ({
                   >
                     <input
                       type="checkbox"
-                      checked={compareZipcodes.includes(item.zipcode)}
-                      disabled={!favZipcodes.includes(item.zipcode)}
-                      onChange={() => onToggleCompareZipcode(item.zipcode)}
+                      checked={compareZipcodes.includes(normalizeZipcode(item.zipcode))}
+                      disabled={!favZipcodes.includes(normalizeZipcode(item.zipcode))}
+                      onChange={() => onToggleCompareZipcode(normalizeZipcode(item.zipcode))}
                     />
                   </td>
                 )}
                 <td onClick={e => { e.stopPropagation(); handleFavoriteClick(e, item, favZipcodes); }} style={{ textAlign: 'center' }}>
-                  <span style={{ fontSize: '18px', color: favZipcodes.includes(item.zipcode) ? '#e25555' : '#bbb', cursor: 'pointer' }}>
-                    {favZipcodes.includes(item.zipcode) ? '❤️' : '🤍'}
+                  <span style={{ fontSize: '18px', color: favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '#e25555' : '#bbb', cursor: 'pointer' }}>
+                    {favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '❤️' : '🤍'}
                   </span>
                 </td>
                 <td>{item.zipcode}</td>

@@ -24,23 +24,31 @@ const MapContainer = ({ data, onLogout, user }) => {
   });
   const mapRef = useRef();
 
-  // Favorited zipcodes state for instant UI update
-  const favKey = `favZipcodes_${user}`;
-  const getInitialFavs = useCallback(() => {
-    try {
-      return JSON.parse(localStorage.getItem(favKey)) || [];
-    } catch (e) { return []; }
-  }, [favKey]);
-  const [favZipcodes, setFavZipcodes] = useState(getInitialFavs());
+  const [favZipcodes, setFavZipcodes] = useState([]);
 
-  // Listen for localStorage changes (if user favorites elsewhere)
-  React.useEffect(() => {
-    const handler = () => {
-      setFavZipcodes(getInitialFavs());
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, [getInitialFavs]);
+  const normalizeZipcode = useCallback((zipcode) => String(zipcode ?? '').trim(), []);
+
+  const fetchFavorites = useCallback(async () => {
+    if (!user) {
+      setFavZipcodes([]);
+      return;
+    }
+    try {
+      const response = await fetch('/api/favorites', {
+        headers: { 'X-User': user }
+      });
+      const result = await response.json();
+      if (response.ok && Array.isArray(result.favorites)) {
+        setFavZipcodes(result.favorites.map(normalizeZipcode));
+      }
+    } catch (err) {
+      // keep current state if backend is temporarily unavailable
+    }
+  }, [normalizeZipcode, user]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
 
   useEffect(() => {
     setCompareZipcodes(prev => prev.filter(zipcode => favZipcodes.includes(zipcode)));
@@ -54,10 +62,10 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   const filteredMapData = useMemo(() => {
     if (compareMode && showOnlyFavs) {
-      return data.filter(item => compareZipcodes.includes(item.zipcode));
+      return data.filter(item => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
     }
     return data;
-  }, [compareMode, compareZipcodes, data, showOnlyFavs]);
+  }, [compareMode, compareZipcodes, data, normalizeZipcode, showOnlyFavs]);
 
   useEffect(() => {
     if (popupInfo && !filteredMapData.some(item => item.zipcode === popupInfo.zipcode)) {
@@ -112,7 +120,37 @@ const MapContainer = ({ data, onLogout, user }) => {
     handleZipcodeSelect(zipcode);
   };
 
-  const handleToggleCompareMode = () => {
+  const handleToggleFavorite = useCallback(async (zipcode) => {
+    const normalizedZipcode = normalizeZipcode(zipcode);
+    if (!normalizedZipcode || !user) return;
+
+    const isFavorited = favZipcodes.includes(normalizedZipcode);
+    const endpoint = isFavorited
+      ? `/api/favorites/${encodeURIComponent(normalizedZipcode)}`
+      : '/api/favorites';
+
+    const response = await fetch(endpoint, {
+      method: isFavorited ? 'DELETE' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User': user
+      },
+      body: isFavorited ? undefined : JSON.stringify({ zipcode: normalizedZipcode })
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to update favorites');
+    }
+
+    const updatedFavorites = Array.isArray(result.favorites)
+      ? result.favorites.map(normalizeZipcode)
+      : [];
+    setFavZipcodes(updatedFavorites);
+    setCompareZipcodes(prev => prev.filter(z => updatedFavorites.includes(normalizeZipcode(z))));
+  }, [favZipcodes, normalizeZipcode, user]);
+
+  const handleToggleCompareMode = useCallback(() => {
     if (compareMode) {
       setCompareMode(false);
       return;
@@ -120,10 +158,10 @@ const MapContainer = ({ data, onLogout, user }) => {
     setShowOnlyFavs(true);
     setCompareMode(true);
     setCompareZipcodes(prev => {
-      const stillValid = prev.filter(zipcode => favZipcodes.includes(zipcode));
+      const stillValid = prev.filter(zipcode => favZipcodes.includes(normalizeZipcode(zipcode)));
       return stillValid.length > 0 ? stillValid : [...favZipcodes];
     });
-  };
+  }, [compareMode, favZipcodes, normalizeZipcode]);
 
   const handleResetMap = () => {
     flyToLocation(-149.8, 61.1, 8);
@@ -142,13 +180,17 @@ const MapContainer = ({ data, onLogout, user }) => {
     const rows = [];
     data.forEach(item => {
       // For each rent entry, pair with the latest sales price for that zipcode
-      const salesPrice = item.sales && item.sales.length > 0 ? item.sales[item.sales.length - 1].price : null;
+      const salesPrice = item.sales && item.sales.length > 0
+        ? Number(item.sales[item.sales.length - 1].price)
+        : null;
       if (item.rent && item.rent.length > 0) {
         item.rent.forEach(rentEntry => {
+          const monthlyRent = Number(rentEntry.avg_price);
+          const inventory = Number(rentEntry.inventory);
           rows.push({
             zipcode: item.zipcode,
-            monthly_rent: rentEntry.avg_price,
-            inventory: rentEntry.inventory,
+            monthly_rent: Number.isFinite(monthlyRent) ? monthlyRent : 0,
+            inventory: Number.isFinite(inventory) ? inventory : 0,
             sales_price: salesPrice
           });
         });
@@ -166,15 +208,23 @@ const MapContainer = ({ data, onLogout, user }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(roiInput)
       });
-      const result = await response.json();
-      if (result.agg_roi) {
-        // Sort descending by roi_sumproduct
-        const sorted = [...result.agg_roi].sort((a, b) => (b.roi_sumproduct || 0) - (a.roi_sumproduct || 0));
-        setRoiTableData(sorted);
-      } else {
-        setRoiTableData([]);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch ROI data');
       }
+
+      const aggRoi = Array.isArray(result.agg_roi) ? result.agg_roi : [];
+      const normalized = aggRoi
+        .map((row) => ({
+          zipcode: String(row.zipcode ?? '').trim(),
+          roi_sumproduct: row.roi_sumproduct == null ? null : Number(row.roi_sumproduct)
+        }))
+        .filter((row) => row.zipcode !== '');
+
+      const sorted = normalized.sort((a, b) => (b.roi_sumproduct || 0) - (a.roi_sumproduct || 0));
+      setRoiTableData(sorted);
     } catch (err) {
+      console.error('ROI table fetch failed:', err);
       setRoiTableData([]);
     }
   };
@@ -215,26 +265,22 @@ const MapContainer = ({ data, onLogout, user }) => {
         showOnlyFavs={showOnlyFavs}
         onToggleCompareMode={handleToggleCompareMode}
         onToggleShowOnlyFavs={() => setShowOnlyFavs(v => !v)}
-        onFavoriteClick={(e, item, currentFavZipcodes) => {
+        onFavoriteClick={async (e, item) => {
           e.stopPropagation();
-          let updatedFavs = [];
-          const isFavorited = currentFavZipcodes.includes(item.zipcode);
-          if (isFavorited) {
-            updatedFavs = currentFavZipcodes.filter(z => z !== item.zipcode);
-          } else {
-            updatedFavs = [...currentFavZipcodes, item.zipcode];
+          try {
+            await handleToggleFavorite(item.zipcode);
+          } catch (err) {
+            // noop; keep UI stable
           }
-          localStorage.setItem(favKey, JSON.stringify(updatedFavs));
-          setFavZipcodes(updatedFavs);
-          setCompareZipcodes(prev => prev.filter(zipcode => updatedFavs.includes(zipcode)));
         }}
         onSidebarZipcodeClick={handleSidebarZipcodeClick}
         onToggleCompareZipcode={(zipcode) => {
-          if (!favZipcodes.includes(zipcode)) return;
+          const normalizedZipcode = normalizeZipcode(zipcode);
+          if (!favZipcodes.includes(normalizedZipcode)) return;
           setCompareZipcodes(prev => (
-            prev.includes(zipcode)
-              ? prev.filter(z => z !== zipcode)
-              : [...prev, zipcode]
+            prev.includes(normalizedZipcode)
+              ? prev.filter(z => z !== normalizedZipcode)
+              : [...prev, normalizedZipcode]
           ));
         }}
       />
@@ -289,7 +335,11 @@ const MapContainer = ({ data, onLogout, user }) => {
             onClose={() => setPopupInfo(null)}
             className="popup-container"
           >
-            <MarkerPopup data={popupInfo} user={user} />
+            <MarkerPopup
+              data={popupInfo}
+              favZipcodes={favZipcodes}
+              onToggleFavorite={handleToggleFavorite}
+            />
           </Popup>
         )}
       </Map>
