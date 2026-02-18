@@ -9,7 +9,6 @@ const MapHeader = ({
   showSearchDropdown,
   filteredZipcodes,
   onZipcodeSelect,
-  onShowRoiModal,
   mapStyles,
   mapStyle,
   onMapStyleChange
@@ -54,12 +53,6 @@ const MapHeader = ({
             No zipcodes found
           </div>
         )}
-      </div>
-
-      <div className="roi-btn-row">
-        <button className="show-roi-btn" type="button" onClick={onShowRoiModal}>
-          ROI TABLE
-        </button>
       </div>
 
       <div className="style-toggle-group">

@@ -245,7 +245,7 @@ const MapContainer = ({ data, onLogout, user }) => {
     }
   }, [data]);
 
-  // Get color based on ROI value (blue gradient)
+  // Get color based on ROI value (red-yellow gradient)
   const getMarkerColor = useCallback((zipcode) => {
     const roi = roiByZipcode[normalizeZipcode(zipcode)];
     
@@ -261,23 +261,26 @@ const MapContainer = ({ data, onLogout, user }) => {
     const maxRoi = Math.max(...validRois);
     
     if (maxRoi === minRoi) {
-      return '#1976D2'; // Vibrant medium blue if all ROIs are the same
+      return '#FF8800'; // Bright orange if all ROIs are the same
     }
 
     // Normalize ROI to 0-1 range
     const normalized = (roi - minRoi) / (maxRoi - minRoi);
     
-    // Very distinct blue gradient: very light blue (#BBDEFB) to very dark blue (#0D47A1)
-    const r = Math.round(187 - (187 - 13) * normalized);
-    const g = Math.round(222 - (222 - 71) * normalized);
-    const b = Math.round(251 - (251 - 161) * normalized);
+    // Bright gradient: yellow (#FFFF00) for lowest ROI to dark red (#DC0000) for highest ROI
+    // Creates orange shades in between
+    const r = Math.round(255 - 35 * normalized);
+    const g = Math.round(255 * (1 - normalized));
+    const b = 0;
     
     return `rgb(${r}, ${g}, ${b})`;
   }, [roiByZipcode, normalizeZipcode]);
 
-  const handleShowROIModal = () => {
-    setRoiModalOpen(true);
-    fetchROITable();
+  const handleToggleROIModal = () => {
+    if (!roiModalOpen) {
+      fetchROITable();
+    }
+    setRoiModalOpen(prev => !prev);
   };
   const handleCloseROIModal = () => setRoiModalOpen(false);
 
@@ -296,7 +299,6 @@ const MapContainer = ({ data, onLogout, user }) => {
         showSearchDropdown={showSearchDropdown}
         filteredZipcodes={filteredZipcodes}
         onZipcodeSelect={handleZipcodeSelect}
-        onShowRoiModal={handleShowROIModal}
         mapStyles={mapStyles}
         mapStyle={mapStyle}
         onMapStyleChange={setMapStyle}
@@ -341,6 +343,13 @@ const MapContainer = ({ data, onLogout, user }) => {
           {mapError}
         </div>
       )}
+      <button
+        className={`roi-map-toggle-btn ${roiModalOpen ? 'open' : 'closed'}`}
+        type="button"
+        onClick={handleToggleROIModal}
+      >
+        ROI TABLE
+      </button>
       <Map
         key={mapStyle}
         ref={mapRef}

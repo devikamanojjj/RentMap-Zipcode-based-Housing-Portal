@@ -2,12 +2,11 @@ import React from 'react';
 import './ROITableModal.css';
 
 const ROITableModal = ({ open, onClose, roiData }) => {
-  if (!open) return null;
   return (
-    <div className="roi-modal-overlay">
-      <div className="roi-modal-content">
+    <div className={`roi-modal-overlay ${open ? 'open' : 'closed'}`} aria-hidden={!open}>
+      <div className={`roi-modal-content ${open ? 'open' : 'closed'}`}>
         <button className="roi-modal-close" onClick={onClose}>×</button>
-        <h2>ROI Table (Descending Order)</h2>
+        <h2>ROI Table</h2>
         <div className="roi-table-wrapper">
           <table className="roi-table">
             <thead>
