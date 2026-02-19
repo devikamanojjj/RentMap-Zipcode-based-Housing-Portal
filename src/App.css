@@ -2,13 +2,14 @@
 .zipcode-sheet-container {
   width: 100%;
   overflow-x: auto;
+  background: transparent;
 }
 .zipcode-sheet-table {
   width: 100%;
   min-width: 0;
   border-collapse: collapse;
   font-size: 15px;
-  background: #fff;
+  background: #ffffff;
   table-layout: auto;
 }
 .zipcode-sheet-table th, .zipcode-sheet-table td {
@@ -20,6 +21,7 @@
   border: 1px solid #e0e0e0;
   padding: 6px 10px;
   text-align: left;
+  background: #ffffff;
 }
 .zipcode-sheet-table th {
   background: #f5f7fa;

@@ -245,7 +245,7 @@ const MapContainer = ({ data, onLogout, user }) => {
     }
   }, [data]);
 
-  // Get color based on ROI value (red-yellow gradient)
+  // Get color based on ROI value (bright red-yellow gradient)
   const getMarkerColor = useCallback((zipcode) => {
     const roi = roiByZipcode[normalizeZipcode(zipcode)];
     
@@ -267,9 +267,9 @@ const MapContainer = ({ data, onLogout, user }) => {
     // Normalize ROI to 0-1 range
     const normalized = (roi - minRoi) / (maxRoi - minRoi);
     
-    // Bright gradient: yellow (#FFFF00) for lowest ROI to dark red (#DC0000) for highest ROI
-    // Creates orange shades in between
-    const r = Math.round(255 - 35 * normalized);
+    // Bright gradient: lowest ROI -> yellow (#FFFF00), highest ROI -> dark red (#DC0000)
+    // Mid-range values naturally form orange shades.
+    const r = Math.round(255 - (255 - 220) * normalized);
     const g = Math.round(255 * (1 - normalized));
     const b = 0;
     
