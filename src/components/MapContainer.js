@@ -107,7 +107,8 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   // Handle zipcode selection from dropdown
   const handleZipcodeSelect = (zipcode) => {
-    const selectedZipcode = data.find(item => item.zipcode === zipcode);
+    const normalizedTarget = normalizeZipcode(zipcode);
+    const selectedZipcode = data.find(item => normalizeZipcode(item.zipcode) === normalizedTarget);
     if (selectedZipcode) {
       flyToLocation(selectedZipcode.longitude, selectedZipcode.latitude, 10);
       setPopupInfo(selectedZipcode);
@@ -284,9 +285,18 @@ const MapContainer = ({ data, onLogout, user }) => {
   };
   const handleCloseROIModal = () => setRoiModalOpen(false);
 
+  const handleROIZipcodeClick = (zipcode) => {
+    handleZipcodeSelect(zipcode);
+  };
+
   return (
     <div className="map-container">
-      <ROITableModal open={roiModalOpen} onClose={handleCloseROIModal} roiData={roiTableData} />
+      <ROITableModal
+        open={roiModalOpen}
+        onClose={handleCloseROIModal}
+        roiData={roiTableData}
+        onZipcodeClick={handleROIZipcodeClick}
+      />
       <MapHeader
         user={user}
         onLogout={onLogout}

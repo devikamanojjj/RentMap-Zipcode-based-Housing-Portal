@@ -1,7 +1,7 @@
 import React from 'react';
 import './ROITableModal.css';
 
-const ROITableModal = ({ open, onClose, roiData }) => {
+const ROITableModal = ({ open, onClose, roiData, onZipcodeClick }) => {
   return (
     <div className={`roi-modal-overlay ${open ? 'open' : 'closed'}`} aria-hidden={!open}>
       <div className={`roi-modal-content ${open ? 'open' : 'closed'}`}>
@@ -17,7 +17,11 @@ const ROITableModal = ({ open, onClose, roiData }) => {
             </thead>
             <tbody>
               {roiData.map((row) => (
-                <tr key={row.zipcode}>
+                <tr
+                  key={row.zipcode}
+                  onClick={() => onZipcodeClick?.(row.zipcode)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{row.zipcode}</td>
                   <td>{row.roi_sumproduct != null ? Number(row.roi_sumproduct).toFixed(2) : '-'}</td>
                 </tr>
