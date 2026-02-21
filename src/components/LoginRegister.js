@@ -11,12 +11,13 @@ const LoginRegister = ({ onAuth }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!username || !password) {
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername || !password) {
       setError('Please fill in all fields.');
       return;
     }
     // Dummy auth logic
-    onAuth(username);
+    onAuth(normalizedUsername);
   };
 
   // Reset fields when switching between login/register

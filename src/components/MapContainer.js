@@ -25,17 +25,18 @@ const MapContainer = ({ data, onLogout, user }) => {
   const mapRef = useRef();
 
   const [favZipcodes, setFavZipcodes] = useState([]);
+  const normalizedUser = String(user ?? '').trim();
 
   const normalizeZipcode = useCallback((zipcode) => String(zipcode ?? '').trim(), []);
 
   const fetchFavorites = useCallback(async () => {
-    if (!user) {
+    if (!normalizedUser) {
       setFavZipcodes([]);
       return;
     }
     try {
       const response = await fetch('/api/favorites', {
-        headers: { 'X-User': user }
+        headers: { 'X-User': normalizedUser }
       });
       const result = await response.json();
       if (response.ok && Array.isArray(result.favorites)) {
@@ -44,7 +45,7 @@ const MapContainer = ({ data, onLogout, user }) => {
     } catch (err) {
       // keep current state if backend is temporarily unavailable
     }
-  }, [normalizeZipcode, user]);
+  }, [normalizeZipcode, normalizedUser]);
 
   useEffect(() => {
     fetchFavorites();
@@ -61,11 +62,18 @@ const MapContainer = ({ data, onLogout, user }) => {
   }, [showOnlyFavs, compareMode]);
 
   const filteredMapData = useMemo(() => {
-    if (compareMode && showOnlyFavs) {
-      return data.filter(item => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
+    if (!showOnlyFavs) {
+      return data;
     }
-    return data;
-  }, [compareMode, compareZipcodes, data, normalizeZipcode, showOnlyFavs]);
+
+    const favoritesOnly = data.filter(item => favZipcodes.includes(normalizeZipcode(item.zipcode)));
+
+    if (compareMode) {
+      return favoritesOnly.filter(item => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
+    }
+
+    return favoritesOnly;
+  }, [compareMode, compareZipcodes, data, favZipcodes, normalizeZipcode, showOnlyFavs]);
 
   useEffect(() => {
     if (popupInfo && !filteredMapData.some(item => item.zipcode === popupInfo.zipcode)) {
@@ -123,7 +131,7 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   const handleToggleFavorite = useCallback(async (zipcode) => {
     const normalizedZipcode = normalizeZipcode(zipcode);
-    if (!normalizedZipcode || !user) return;
+    if (!normalizedZipcode || !normalizedUser) return;
 
     const isFavorited = favZipcodes.includes(normalizedZipcode);
     const endpoint = isFavorited
@@ -134,7 +142,7 @@ const MapContainer = ({ data, onLogout, user }) => {
       method: isFavorited ? 'DELETE' : 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User': user
+        'X-User': normalizedUser
       },
       body: isFavorited ? undefined : JSON.stringify({ zipcode: normalizedZipcode })
     });
@@ -149,7 +157,14 @@ const MapContainer = ({ data, onLogout, user }) => {
       : [];
     setFavZipcodes(updatedFavorites);
     setCompareZipcodes(prev => prev.filter(z => updatedFavorites.includes(normalizeZipcode(z))));
-  }, [favZipcodes, normalizeZipcode, user]);
+  }, [favZipcodes, normalizeZipcode, normalizedUser]);
+
+  const handleToggleShowOnlyFavs = useCallback(async () => {
+    if (!showOnlyFavs) {
+      await fetchFavorites();
+    }
+    setShowOnlyFavs((prev) => !prev);
+  }, [fetchFavorites, showOnlyFavs]);
 
   const handleToggleCompareMode = useCallback(() => {
     if (compareMode) {
@@ -158,11 +173,8 @@ const MapContainer = ({ data, onLogout, user }) => {
     }
     setShowOnlyFavs(true);
     setCompareMode(true);
-    setCompareZipcodes(prev => {
-      const stillValid = prev.filter(zipcode => favZipcodes.includes(normalizeZipcode(zipcode)));
-      return stillValid.length > 0 ? stillValid : [...favZipcodes];
-    });
-  }, [compareMode, favZipcodes, normalizeZipcode]);
+    setCompareZipcodes([]);
+  }, [compareMode]);
 
   const handleResetMap = () => {
     flyToLocation(-149.8, 61.1, 8);
@@ -322,7 +334,7 @@ const MapContainer = ({ data, onLogout, user }) => {
         favZipcodes={favZipcodes}
         showOnlyFavs={showOnlyFavs}
         onToggleCompareMode={handleToggleCompareMode}
-        onToggleShowOnlyFavs={() => setShowOnlyFavs(v => !v)}
+        onToggleShowOnlyFavs={handleToggleShowOnlyFavs}
         onFavoriteClick={async (e, item) => {
           e.stopPropagation();
           try {
