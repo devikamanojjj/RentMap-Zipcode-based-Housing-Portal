@@ -185,7 +185,7 @@
 
 .roi-map-toggle-btn {
   position: fixed;
-  top: 220px;
+  top: 140px;
   right: 0;
   z-index: 2600;
   padding: 10px 16px;
@@ -207,7 +207,8 @@
 }
 
 .roi-map-toggle-btn.open {
-  right: min(360px, 36vw);
+  right: calc(min(360px, 36vw) - 1px);
+  border-radius: 8px 0 0 8px;
 }
 
 .search-box {
