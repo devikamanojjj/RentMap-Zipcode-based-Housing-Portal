@@ -7,6 +7,7 @@ import MapHeader from './MapHeader';
 import SidebarPanel from './SidebarPanel';
 import SidebarToggleArrow from './SidebarToggleArrow';
 import MapControls from './MapControls';
+import CompareInsightsModal from './CompareInsightsModal';
 
 const MapContainer = ({ data, onLogout, user }) => {
   const [showOnlyFavs, setShowOnlyFavs] = useState(false);
@@ -187,6 +188,23 @@ const MapContainer = ({ data, onLogout, user }) => {
   const [roiModalOpen, setRoiModalOpen] = useState(false);
   const [roiTableData, setRoiTableData] = useState([]);
   const [roiByZipcode, setRoiByZipcode] = useState({});
+  const [compareInsightsOpen, setCompareInsightsOpen] = useState(false);
+
+  const selectedCompareData = useMemo(() => {
+    if (!compareMode || compareZipcodes.length === 0) {
+      return [];
+    }
+
+    return data.filter((item) => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
+  }, [compareMode, compareZipcodes, data, normalizeZipcode]);
+
+  useEffect(() => {
+    if (compareMode && compareZipcodes.length > 0) {
+      setCompareInsightsOpen(true);
+      return;
+    }
+    setCompareInsightsOpen(false);
+  }, [compareMode, compareZipcodes]);
 
 
   // Prepare data in the format expected by the backend ROI calculation
@@ -289,6 +307,19 @@ const MapContainer = ({ data, onLogout, user }) => {
     return `rgb(${r}, ${g}, ${b})`;
   }, [roiByZipcode, normalizeZipcode]);
 
+  const roiLegendStats = useMemo(() => {
+    const validRois = Object.values(roiByZipcode).filter((value) => Number.isFinite(value));
+    if (validRois.length === 0) {
+      return { hasData: false, minRoi: null, maxRoi: null };
+    }
+
+    return {
+      hasData: true,
+      minRoi: Math.min(...validRois),
+      maxRoi: Math.max(...validRois)
+    };
+  }, [roiByZipcode]);
+
   const handleToggleROIModal = () => {
     if (!roiModalOpen) {
       fetchROITable();
@@ -301,6 +332,18 @@ const MapContainer = ({ data, onLogout, user }) => {
     handleZipcodeSelect(zipcode);
   };
 
+  const handleToggleSidebar = () => {
+    setShowSidebar((prev) => {
+      const willOpen = !prev;
+      if (!willOpen) {
+        setShowOnlyFavs(false);
+        setCompareMode(false);
+        setCompareZipcodes([]);
+      }
+      return willOpen;
+    });
+  };
+
   return (
     <div className="map-container">
       <ROITableModal
@@ -308,6 +351,13 @@ const MapContainer = ({ data, onLogout, user }) => {
         onClose={handleCloseROIModal}
         roiData={roiTableData}
         onZipcodeClick={handleROIZipcodeClick}
+      />
+      <CompareInsightsModal
+        open={compareInsightsOpen}
+        onClose={() => setCompareInsightsOpen(false)}
+        selectedZipcodes={compareZipcodes}
+        selectedData={selectedCompareData}
+        roiByZipcode={roiByZipcode}
       />
       <MapHeader
         user={user}
@@ -357,7 +407,7 @@ const MapContainer = ({ data, onLogout, user }) => {
 
       <SidebarToggleArrow
         showSidebar={showSidebar}
-        onToggle={() => setShowSidebar(!showSidebar)}
+        onToggle={handleToggleSidebar}
       />
       
       {mapError && (
@@ -447,6 +497,16 @@ const MapContainer = ({ data, onLogout, user }) => {
           </Popup>
         )}
       </Map>
+      {roiLegendStats.hasData && (
+        <div className={`roi-gradient-legend ${roiModalOpen ? 'roi-legend-shifted' : ''}`} aria-label="ROI color legend">
+          <div className="roi-gradient-legend-title">ROI Gradient</div>
+          <div className="roi-gradient-bar" />
+          <div className="roi-gradient-labels">
+            <span>High ROI ({roiLegendStats.maxRoi.toFixed(2)}%)</span>
+            <span>Low ROI ({roiLegendStats.minRoi.toFixed(2)}%)</span>
+          </div>
+        </div>
+      )},
       <MapControls
         onZoomIn={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}
         onZoomOut={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}

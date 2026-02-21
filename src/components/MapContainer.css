@@ -37,6 +37,49 @@
   gap: 0.3rem;
   z-index: 1200;
 }
+
+.roi-gradient-legend {
+  position: fixed;
+  right: 88px;
+  bottom: 34px;
+  transform: none;
+  width: min(280px, 52vw);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  padding: 6px 8px;
+  z-index: 1250;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.roi-gradient-legend-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.roi-gradient-bar {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  border: 1px solid #cfcfcf;
+  background: linear-gradient(90deg, #dc0000 0%, #ff8800 52%, #ffff00 100%);
+}
+
+.roi-gradient-labels {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.roi-gradient-legend.roi-legend-shifted {
+  right: calc(min(360px, 36vw) + 20px);
+  transition: right 0.28s ease;
+}
 .controller-btn {
   background: #e8f5e8;
   color: #388e3c;
