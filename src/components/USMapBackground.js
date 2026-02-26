@@ -18,7 +18,7 @@ const USMapBackground = () => {
           zoom: 2.8
         }}
         style={{ width: '100vw', height: '100vh' }}
-        mapStyle="mapbox://styles/mapbox/light-v11"
+        mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={token}
         attributionControl={false}
         interactive={false}
