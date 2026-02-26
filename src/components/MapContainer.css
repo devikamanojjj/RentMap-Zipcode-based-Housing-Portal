@@ -261,6 +261,14 @@
   max-width: 300px;
 }
 
+.search-filter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
+}
+
 .search-input {
   width: 100%;
   padding: 8px 12px;

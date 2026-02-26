@@ -26,6 +26,16 @@ const MapContainer = ({ data, onLogout, user }) => {
   const mapRef = useRef();
 
   const [favZipcodes, setFavZipcodes] = useState([]);
+  const [activeFilters, setActiveFilters] = useState({
+    rentMin: null,
+    rentMax: null,
+    roiMin: null,
+    roiMax: null
+  });
+  const [roiModalOpen, setRoiModalOpen] = useState(false);
+  const [roiTableData, setRoiTableData] = useState([]);
+  const [roiByZipcode, setRoiByZipcode] = useState({});
+  const [compareInsightsOpen, setCompareInsightsOpen] = useState(false);
   const normalizedUser = String(user ?? '').trim();
 
   const normalizeZipcode = useCallback((zipcode) => String(zipcode ?? '').trim(), []);
@@ -62,19 +72,53 @@ const MapContainer = ({ data, onLogout, user }) => {
     }
   }, [showOnlyFavs, compareMode]);
 
-  const filteredMapData = useMemo(() => {
-    if (!showOnlyFavs) {
-      return data;
+  const passesActiveFilters = useCallback((item) => {
+    const { rentMin, rentMax, roiMin, roiMax } = activeFilters;
+
+    if (rentMin != null || rentMax != null) {
+      const rentValues = (item.rent || [])
+        .map((entry) => Number(entry.avg_price))
+        .filter((value) => Number.isFinite(value));
+
+      if (rentValues.length === 0) {
+        return false;
+      }
+
+      const latestRent = rentValues[rentValues.length - 1];
+      if (rentMin != null && latestRent < rentMin) return false;
+      if (rentMax != null && latestRent > rentMax) return false;
     }
 
-    const favoritesOnly = data.filter(item => favZipcodes.includes(normalizeZipcode(item.zipcode)));
+    if (roiMin != null || roiMax != null) {
+      const roiValue = roiByZipcode[normalizeZipcode(item.zipcode)];
+      if (!Number.isFinite(roiValue)) {
+        return false;
+      }
+      if (roiMin != null && roiValue < roiMin) return false;
+      if (roiMax != null && roiValue > roiMax) return false;
+    }
+
+    return true;
+  }, [activeFilters, normalizeZipcode, roiByZipcode]);
+
+  const filteredBaseData = useMemo(
+    () => data.filter((item) => passesActiveFilters(item)),
+    [data, passesActiveFilters]
+  );
+
+  const filteredMapData = useMemo(() => {
+    if (!showOnlyFavs) {
+      return filteredBaseData;
+    }
+
+    const favoritesOnly = filteredBaseData.filter(item => favZipcodes.includes(normalizeZipcode(item.zipcode)));
 
     if (compareMode) {
       return favoritesOnly.filter(item => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
     }
 
     return favoritesOnly;
-  }, [compareMode, compareZipcodes, data, favZipcodes, normalizeZipcode, showOnlyFavs]);
+  }, [compareMode, compareZipcodes, favZipcodes, filteredBaseData, normalizeZipcode, showOnlyFavs]);
 
   useEffect(() => {
     if (popupInfo && !filteredMapData.some(item => item.zipcode === popupInfo.zipcode)) {
@@ -110,14 +154,14 @@ const MapContainer = ({ data, onLogout, user }) => {
   // Filter zipcodes based on search input
   const filteredZipcodes = searchInput.trim() === '' 
     ? [] 
-    : data.filter(item => 
+    : filteredBaseData.filter(item => 
         item.zipcode.toString().includes(searchInput)
       );
 
   // Handle zipcode selection from dropdown
   const handleZipcodeSelect = (zipcode) => {
     const normalizedTarget = normalizeZipcode(zipcode);
-    const selectedZipcode = data.find(item => normalizeZipcode(item.zipcode) === normalizedTarget);
+    const selectedZipcode = filteredBaseData.find(item => normalizeZipcode(item.zipcode) === normalizedTarget);
     if (selectedZipcode) {
       flyToLocation(selectedZipcode.longitude, selectedZipcode.latitude, 10);
       setPopupInfo(selectedZipcode);
@@ -184,19 +228,13 @@ const MapContainer = ({ data, onLogout, user }) => {
     setShowSearchDropdown(false);
   };
 
-  // ROI Table modal state
-  const [roiModalOpen, setRoiModalOpen] = useState(false);
-  const [roiTableData, setRoiTableData] = useState([]);
-  const [roiByZipcode, setRoiByZipcode] = useState({});
-  const [compareInsightsOpen, setCompareInsightsOpen] = useState(false);
-
   const selectedCompareData = useMemo(() => {
     if (!compareMode || compareZipcodes.length === 0) {
       return [];
     }
 
-    return data.filter((item) => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
-  }, [compareMode, compareZipcodes, data, normalizeZipcode]);
+    return filteredBaseData.filter((item) => compareZipcodes.includes(normalizeZipcode(item.zipcode)));
+  }, [compareMode, compareZipcodes, filteredBaseData, normalizeZipcode]);
 
   useEffect(() => {
     if (compareMode && compareZipcodes.length > 0) {
@@ -374,10 +412,14 @@ const MapContainer = ({ data, onLogout, user }) => {
         mapStyles={mapStyles}
         mapStyle={mapStyle}
         onMapStyleChange={setMapStyle}
+        data={data}
+        roiByZipcode={roiByZipcode}
+        onApplyFilters={setActiveFilters}
+        onResetFilters={() => setActiveFilters({ rentMin: null, rentMax: null, roiMin: null, roiMax: null })}
       />
 
       <SidebarPanel
-        data={data}
+        data={filteredBaseData}
         showSidebar={showSidebar}
         compareMode={compareMode}
         compareZipcodes={compareZipcodes}
@@ -506,7 +548,7 @@ const MapContainer = ({ data, onLogout, user }) => {
             <span>Low ROI ({roiLegendStats.minRoi.toFixed(2)}%)</span>
           </div>
         </div>
-      )},
+      )}
       <MapControls
         onZoomIn={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}
         onZoomOut={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}
