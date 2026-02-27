@@ -31,6 +31,10 @@ const LoginRegister = ({ onAuth }) => {
   return (
     <div className="login-register-modal">
       <USMapBackground />
+      <div className="login-portal-header">
+        <h1 className="portal-title">RENTMAP-ZIPCODE-BASED HOUSING PORTAL</h1>
+        <p className="portal-tagline">YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
+      </div>
       <div className="login-register-box">
         <h2>{isLogin ? 'Login' : 'Register'}</h2>
         <form onSubmit={handleSubmit} autoComplete="off">
