@@ -34,23 +34,67 @@
 
 .filter-row {
   display: grid;
-  grid-template-columns: 66px 1fr 52px;
+  grid-template-columns: 52px 1fr;
   gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .filter-row label {
-  font-size: 12px;
+  font-size: 15px;
   color: #2E7D32;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.filter-row span {
-  font-size: 12px;
+.slider-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slider-bound {
+  font-size: 13px;
   color: #2E7D32;
-  text-align: right;
   font-weight: 600;
+  white-space: nowrap;
+  min-width: 34px;
+}
+
+.slider-bound-right {
+  text-align: right;
+}
+
+.slider-track-wrap {
+  position: relative;
+  flex: 1;
+  padding-top: 24px;
+}
+
+.slider-bubble {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: #1b5e20;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+.slider-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #1b5e20;
 }
 
 .filter-row input[type="range"] {

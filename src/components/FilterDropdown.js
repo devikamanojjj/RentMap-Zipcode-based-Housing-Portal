@@ -3,6 +3,9 @@ import './FilterDropdown.css';
 
 const round2 = (value) => Math.round(value * 100) / 100;
 
+const sliderPct = (val, min, max) => ((val - min) / ((max - min) || 1)) * 100;
+const bubbleLeft = (pct) => `calc(${pct}% + ${(8 - pct * 0.16).toFixed(2)}px)`;
+
 const FilterDropdown = ({ data, roiByZipcode, onApplyFilters, onResetFilters }) => {
   const [open, setOpen] = useState(false);
 
@@ -69,27 +72,49 @@ const FilterDropdown = ({ data, roiByZipcode, onApplyFilters, onResetFilters }) 
         <div className="filter-popover">
           <div className="filter-row">
             <label>Rent</label>
-            <input
-              type="range"
-              min={bounds.minRent}
-              max={bounds.maxRent || bounds.minRent + 1}
-              value={localFilters.rentMin ?? bounds.minRent}
-              onChange={(e) => setFilterValue('rentMin', Number(e.target.value))}
-            />
-            <span>{Math.round(localFilters.rentMin ?? bounds.minRent)}</span>
+            <div className="slider-section">
+              <span className="slider-bound">${Math.round(bounds.minRent)}</span>
+              <div className="slider-track-wrap">
+                <span
+                  className="slider-bubble"
+                  style={{ left: bubbleLeft(sliderPct(localFilters.rentMin ?? bounds.minRent, bounds.minRent, bounds.maxRent || bounds.minRent + 1)) }}
+                >
+                  ${Math.round(localFilters.rentMin ?? bounds.minRent)}
+                </span>
+                <input
+                  type="range"
+                  min={bounds.minRent}
+                  max={bounds.maxRent || bounds.minRent + 1}
+                  value={localFilters.rentMin ?? bounds.minRent}
+                  onChange={(e) => setFilterValue('rentMin', Number(e.target.value))}
+                />
+              </div>
+              <span className="slider-bound slider-bound-right">${Math.round(bounds.maxRent)}</span>
+            </div>
           </div>
 
           <div className="filter-row">
             <label>ROI</label>
-            <input
-              type="range"
-              step="0.01"
-              min={bounds.minRoi}
-              max={bounds.maxRoi || bounds.minRoi + 1}
-              value={localFilters.roiMin ?? bounds.minRoi}
-              onChange={(e) => setFilterValue('roiMin', Number(e.target.value))}
-            />
-            <span>{round2(localFilters.roiMin ?? bounds.minRoi)}</span>
+            <div className="slider-section">
+              <span className="slider-bound">{round2(bounds.minRoi)}%</span>
+              <div className="slider-track-wrap">
+                <span
+                  className="slider-bubble"
+                  style={{ left: bubbleLeft(sliderPct(localFilters.roiMin ?? bounds.minRoi, bounds.minRoi, bounds.maxRoi || bounds.minRoi + 1)) }}
+                >
+                  {round2(localFilters.roiMin ?? bounds.minRoi)}%
+                </span>
+                <input
+                  type="range"
+                  step="0.01"
+                  min={bounds.minRoi}
+                  max={bounds.maxRoi || bounds.minRoi + 1}
+                  value={localFilters.roiMin ?? bounds.minRoi}
+                  onChange={(e) => setFilterValue('roiMin', Number(e.target.value))}
+                />
+              </div>
+              <span className="slider-bound slider-bound-right">{round2(bounds.maxRoi)}%</span>
+            </div>
           </div>
 
           <div className="filter-actions">

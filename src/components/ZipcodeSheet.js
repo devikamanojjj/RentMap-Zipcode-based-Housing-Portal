@@ -2,6 +2,7 @@ import React from 'react';
 
 const ZipcodeSheet = ({
   data,
+  roiByZipcode = {},
   favZipcodes,
   showOnlyFavs,
   handleFavoriteClick,
@@ -28,6 +29,7 @@ const ZipcodeSheet = ({
             <th>Avg Sale Price</th>
             <th>Rent Records</th>
             <th>Avg Rent</th>
+            <th>ROI</th>
           </tr>
         </thead>
         <tbody>
@@ -63,6 +65,12 @@ const ZipcodeSheet = ({
                 <td>{salesStats > 0 ? `$${salesStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}` : '-'}</td>
                 <td>{item.rent.length}</td>
                 <td>{rentStats > 0 ? `$${rentStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}` : '-'}</td>
+                <td>{
+                  (() => {
+                    const roi = Number(roiByZipcode[normalizeZipcode(item.zipcode)]);
+                    return Number.isFinite(roi) ? `${roi.toFixed(2)}%` : '-';
+                  })()
+                }</td>
               </tr>
             );
           })}

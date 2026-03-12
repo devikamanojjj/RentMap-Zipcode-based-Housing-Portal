@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import ROITableModal from './ROITableModal';
 import Map, { Marker, Popup } from 'react-map-gl';
 import './MapContainer.css';
 import MarkerPopup from './MarkerPopup';
@@ -32,7 +31,6 @@ const MapContainer = ({ data, onLogout, user }) => {
     roiMin: null,
     roiMax: null
   });
-  const [roiModalOpen, setRoiModalOpen] = useState(false);
   const [roiTableData, setRoiTableData] = useState([]);
   const [roiByZipcode, setRoiByZipcode] = useState({});
   const [compareInsightsOpen, setCompareInsightsOpen] = useState(false);
@@ -358,18 +356,6 @@ const MapContainer = ({ data, onLogout, user }) => {
     };
   }, [roiByZipcode]);
 
-  const handleToggleROIModal = () => {
-    if (!roiModalOpen) {
-      fetchROITable();
-    }
-    setRoiModalOpen(prev => !prev);
-  };
-  const handleCloseROIModal = () => setRoiModalOpen(false);
-
-  const handleROIZipcodeClick = (zipcode) => {
-    handleZipcodeSelect(zipcode);
-  };
-
   const handleToggleSidebar = () => {
     setShowSidebar((prev) => {
       const willOpen = !prev;
@@ -384,12 +370,6 @@ const MapContainer = ({ data, onLogout, user }) => {
 
   return (
     <div className="map-container">
-      <ROITableModal
-        open={roiModalOpen}
-        onClose={handleCloseROIModal}
-        roiData={roiTableData}
-        onZipcodeClick={handleROIZipcodeClick}
-      />
       <CompareInsightsModal
         open={compareInsightsOpen}
         onClose={() => setCompareInsightsOpen(false)}
@@ -420,6 +400,7 @@ const MapContainer = ({ data, onLogout, user }) => {
 
       <SidebarPanel
         data={filteredBaseData}
+        roiByZipcode={roiByZipcode}
         showSidebar={showSidebar}
         compareMode={compareMode}
         compareZipcodes={compareZipcodes}
@@ -457,13 +438,6 @@ const MapContainer = ({ data, onLogout, user }) => {
           {mapError}
         </div>
       )}
-      <button
-        className={`roi-map-toggle-btn ${roiModalOpen ? 'open' : 'closed'}`}
-        type="button"
-        onClick={handleToggleROIModal}
-      >
-        ROI TABLE
-      </button>
       <Map
         key={mapStyle}
         ref={mapRef}
@@ -540,7 +514,7 @@ const MapContainer = ({ data, onLogout, user }) => {
         )}
       </Map>
       {roiLegendStats.hasData && (
-        <div className={`roi-gradient-legend ${roiModalOpen ? 'roi-legend-shifted' : ''}`} aria-label="ROI color legend">
+        <div className="roi-gradient-legend" aria-label="ROI color legend">
           <div className="roi-gradient-legend-title">ROI Gradient</div>
           <div className="roi-gradient-bar" />
           <div className="roi-gradient-labels">
