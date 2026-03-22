@@ -224,9 +224,6 @@ const MarkerPopup = ({ data, favZipcodes, onToggleFavorite }) => {
         )}
       </div>
 
-      <div className="popup-footer">
-        <small>Click marker to close</small>
-      </div>
     </div>
   );
 };

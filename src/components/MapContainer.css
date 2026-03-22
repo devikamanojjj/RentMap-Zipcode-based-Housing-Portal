@@ -483,8 +483,8 @@
   padding: 0 !important;
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  max-width: 350px;
-  min-width: 320px;
+  max-width: 305px;
+  min-width: 280px;
 }
 
 .data-legend {
