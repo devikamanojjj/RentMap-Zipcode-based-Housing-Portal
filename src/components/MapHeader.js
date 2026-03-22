@@ -10,9 +10,6 @@ const MapHeader = ({
   showSearchDropdown,
   filteredZipcodes,
   onZipcodeSelect,
-  mapStyles,
-  mapStyle,
-  onMapStyleChange,
   data,
   roiByZipcode,
   onApplyFilters,
@@ -68,18 +65,6 @@ const MapHeader = ({
         />
       </div>
 
-      <div className="style-toggle-group">
-        {mapStyles.map((style) => (
-          <button
-            key={style.value}
-            className={`style-toggle-btn${mapStyle === style.value ? ' active' : ''}`}
-            onClick={() => style.value && onMapStyleChange(style.value)}
-            type="button"
-          >
-            {style.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 };

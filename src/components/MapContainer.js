@@ -479,14 +479,26 @@ const MapContainer = ({ data, onLogout, user }) => {
         showSearchDropdown={showSearchDropdown}
         filteredZipcodes={filteredZipcodes}
         onZipcodeSelect={handleZipcodeSelect}
-        mapStyles={mapStyles}
-        mapStyle={mapStyle}
-        onMapStyleChange={setMapStyle}
         data={data}
         roiByZipcode={roiByZipcode}
         onApplyFilters={setActiveFilters}
         onResetFilters={() => setActiveFilters({ rentMin: null, rentMax: null, roiMin: null, roiMax: null })}
       />
+
+      <div className="map-style-overlay" aria-label="Map style selector">
+        <div className="style-toggle-group">
+          {mapStyles.map((style) => (
+            <button
+              key={style.value}
+              className={`style-toggle-btn${mapStyle === style.value ? ' active' : ''}`}
+              onClick={() => style.value && setMapStyle(style.value)}
+              type="button"
+            >
+              {style.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <SidebarPanel
         data={filteredBaseData}
