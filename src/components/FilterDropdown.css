@@ -1,5 +1,6 @@
 .filter-dropdown {
   position: relative;
+  z-index: 4100;
 }
 
 .filter-btn {
@@ -29,7 +30,7 @@
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(46, 125, 50, 0.25);
   padding: 10px;
-  z-index: 1500;
+  z-index: 4101;
 }
 
 .filter-row {
@@ -104,6 +105,7 @@
   background: #e8f5e8;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
   margin: 5px 0;
 }
 
