@@ -265,6 +265,11 @@ const MapContainer = ({ data, onLogout, user }) => {
       return;
     }
 
+    const previousFavorites = favZipcodes;
+    const nextFavorites = previousFavorites.filter((zipcode) => normalizeZipcode(zipcode) !== normalizedZipcode);
+    setFavZipcodes(nextFavorites);
+    setCompareZipcodes(prev => prev.filter(z => nextFavorites.includes(normalizeZipcode(z))));
+
     setIsUnfavoriteSaving(true);
     try {
       const response = await fetch(`/api/favorites/${encodeURIComponent(normalizedZipcode)}`, {
@@ -282,16 +287,18 @@ const MapContainer = ({ data, onLogout, user }) => {
 
       const updatedFavorites = Array.isArray(result.favorites)
         ? result.favorites.map(normalizeZipcode)
-        : [];
+        : nextFavorites;
       setFavZipcodes(updatedFavorites);
       setCompareZipcodes(prev => prev.filter(z => updatedFavorites.includes(normalizeZipcode(z))));
       setConfirmUnfavoriteZipcode('');
     } catch (err) {
-      // keep dialog open so user can retry or cancel
+      // Roll back UI state when request fails.
+      setFavZipcodes(previousFavorites);
+      setCompareZipcodes(prev => prev.filter(z => previousFavorites.includes(normalizeZipcode(z))));
     } finally {
       setIsUnfavoriteSaving(false);
     }
-  }, [confirmUnfavoriteZipcode, normalizeZipcode, normalizedUser]);
+  }, [confirmUnfavoriteZipcode, favZipcodes, normalizeZipcode, normalizedUser]);
 
   const handleToggleShowOnlyFavs = useCallback(async () => {
     if (!showOnlyFavs) {
