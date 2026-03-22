@@ -3,6 +3,7 @@ import React from 'react';
 const ZipcodeSheet = ({
   data,
   roiByZipcode = {},
+  selectedZipcode,
   favZipcodes,
   showOnlyFavs,
   handleFavoriteClick,
@@ -12,6 +13,7 @@ const ZipcodeSheet = ({
   onToggleCompareZipcode
 }) => {
   const normalizeZipcode = (zipcode) => String(zipcode ?? '').trim();
+  const normalizedSelectedZipcode = normalizeZipcode(selectedZipcode);
   const filteredData = showOnlyFavs
     ? data.filter(item => favZipcodes.includes(normalizeZipcode(item.zipcode)))
     : data;
@@ -39,8 +41,15 @@ const ZipcodeSheet = ({
             const rentStats = item.rent.length > 0 
               ? item.rent.filter(r => r.avg_price).reduce((acc, r) => acc + r.avg_price, 0) / item.rent.filter(r => r.avg_price).length
               : 0;
+            const normalizedItemZipcode = normalizeZipcode(item.zipcode);
+            const isSelected = normalizedItemZipcode === normalizedSelectedZipcode;
             return (
-              <tr key={item.zipcode} onClick={() => handleSidebarZipcodeClick(item.zipcode)} style={{ cursor: 'pointer' }}>
+              <tr
+                key={item.zipcode}
+                className={isSelected ? 'zipcode-row-selected' : ''}
+                onClick={() => handleSidebarZipcodeClick(item.zipcode)}
+                style={{ cursor: 'pointer' }}
+              >
                 {showCompareColumn && (
                   <td
                     onClick={e => e.stopPropagation()}
@@ -48,18 +57,18 @@ const ZipcodeSheet = ({
                   >
                     <input
                       type="checkbox"
-                      checked={compareZipcodes.includes(normalizeZipcode(item.zipcode))}
-                      disabled={!favZipcodes.includes(normalizeZipcode(item.zipcode))}
-                      onChange={() => onToggleCompareZipcode(normalizeZipcode(item.zipcode))}
+                      checked={compareZipcodes.includes(normalizedItemZipcode)}
+                      disabled={!favZipcodes.includes(normalizedItemZipcode)}
+                      onChange={() => onToggleCompareZipcode(normalizedItemZipcode)}
                     />
                   </td>
                 )}
                 <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                   <span
                     onClick={e => { e.stopPropagation(); handleFavoriteClick(e, item, favZipcodes); }}
-                    style={{ fontSize: '18px', color: favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '#e25555' : '#bbb', cursor: 'pointer' }}
+                    style={{ fontSize: '18px', color: favZipcodes.includes(normalizedItemZipcode) ? '#e25555' : '#bbb', cursor: 'pointer' }}
                   >
-                    {favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '❤️' : '🤍'}
+                    {favZipcodes.includes(normalizedItemZipcode) ? '❤️' : '🤍'}
                   </span>
                   <span style={{ marginLeft: '8px' }}>{item.zipcode}</span>
                 </td>
@@ -69,7 +78,7 @@ const ZipcodeSheet = ({
                 <td>{rentStats > 0 ? `$${rentStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}` : '-'}</td>
                 <td>{
                   (() => {
-                    const roi = Number(roiByZipcode[normalizeZipcode(item.zipcode)]);
+                    const roi = Number(roiByZipcode[normalizedItemZipcode]);
                     return Number.isFinite(roi) ? `${roi.toFixed(2)}%` : '-';
                   })()
                 }</td>

@@ -503,6 +503,7 @@ const MapContainer = ({ data, onLogout, user }) => {
       <SidebarPanel
         data={filteredBaseData}
         roiByZipcode={roiByZipcode}
+        selectedZipcode={normalizeZipcode(popupInfo?.zipcode)}
         showSidebar={showSidebar}
         compareMode={compareMode}
         compareZipcodes={compareZipcodes}

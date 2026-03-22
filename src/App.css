@@ -32,6 +32,19 @@
 .zipcode-sheet-table tr:hover {
   background: #f0f4ff;
 }
+
+.zipcode-sheet-table tr.zipcode-row-selected td {
+  background: #e8f5e9;
+}
+
+.zipcode-sheet-table tr.zipcode-row-selected {
+  box-shadow: inset 4px 0 0 #4caf50;
+}
+
+.zipcode-sheet-table tr.zipcode-row-selected:hover td {
+  background: #dcf0dd;
+}
+
 .App {
   min-height: 100vh;
   height: 100vh;

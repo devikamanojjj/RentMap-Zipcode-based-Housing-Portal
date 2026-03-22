@@ -5,6 +5,7 @@ import CompareToggle from './CompareToggle';
 const SidebarPanel = ({
   data,
   roiByZipcode,
+  selectedZipcode,
   showSidebar,
   compareMode,
   compareZipcodes,
@@ -42,6 +43,7 @@ const SidebarPanel = ({
         <ZipcodeSheet
           data={data}
           roiByZipcode={roiByZipcode}
+          selectedZipcode={selectedZipcode}
           favZipcodes={favZipcodes}
           showOnlyFavs={showOnlyFavs}
           handleFavoriteClick={onFavoriteClick}
