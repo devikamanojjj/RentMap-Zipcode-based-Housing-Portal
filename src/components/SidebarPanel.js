@@ -7,6 +7,7 @@ const SidebarPanel = ({
   roiByZipcode,
   selectedZipcode,
   showSidebar,
+  listOnly,
   compareMode,
   compareZipcodes,
   favZipcodes,
@@ -19,7 +20,7 @@ const SidebarPanel = ({
 }) => {
   return (
     <div
-      className={`sidebar ${showSidebar ? 'open' : 'closed'}`}
+      className={`sidebar ${showSidebar ? 'open' : 'closed'}${listOnly ? ' list-only' : ''}`}
     >
       <div className="sidebar-header sidebar-header-layout">
         <h3 className="sidebar-title">All Zipcodes ({data.length})</h3>

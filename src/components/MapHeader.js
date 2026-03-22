@@ -4,6 +4,8 @@ import FilterDropdown from './FilterDropdown';
 const MapHeader = ({
   user,
   onLogout,
+  layoutMode,
+  onLayoutModeChange,
   searchInput,
   onSearchInputChange,
   onSearchFocus,
@@ -23,6 +25,30 @@ const MapHeader = ({
       <div className="top-right-auth">
         <span className="user-label">{user}</span>
         <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
+      </div>
+
+      <div className="layout-view-switch" role="group" aria-label="Select layout view">
+        <button
+          type="button"
+          className={`layout-view-btn${layoutMode === 'list' ? ' active' : ''}`}
+          onClick={() => onLayoutModeChange('list')}
+        >
+          List View
+        </button>
+        <button
+          type="button"
+          className={`layout-view-btn${layoutMode === 'split' ? ' active' : ''}`}
+          onClick={() => onLayoutModeChange('split')}
+        >
+          Split View
+        </button>
+        <button
+          type="button"
+          className={`layout-view-btn${layoutMode === 'map' ? ' active' : ''}`}
+          onClick={() => onLayoutModeChange('map')}
+        >
+          Map View
+        </button>
       </div>
 
       <div className="search-filter-row">

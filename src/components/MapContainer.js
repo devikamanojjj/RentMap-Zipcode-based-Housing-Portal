@@ -21,6 +21,7 @@ const MapContainer = ({ data, onLogout, user }) => {
   const [favoriteToastVisible, setFavoriteToastVisible] = useState(false);
   const [confirmUnfavoriteZipcode, setConfirmUnfavoriteZipcode] = useState('');
   const [isUnfavoriteSaving, setIsUnfavoriteSaving] = useState(false);
+  const [layoutMode, setLayoutMode] = useState('split');
   const [viewState, setViewState] = useState({
     longitude: -149.8,
     latitude: 61.1,
@@ -458,6 +459,76 @@ const MapContainer = ({ data, onLogout, user }) => {
     });
   };
 
+  const handleLayoutModeChange = useCallback((mode) => {
+    if (!['list', 'split', 'map'].includes(mode)) return;
+    setLayoutMode(mode);
+
+    if (mode === 'map') {
+      setShowSidebar(false);
+      setShowOnlyFavs(false);
+      setCompareMode(false);
+      setCompareZipcodes([]);
+      return;
+    }
+
+    setShowSidebar(true);
+  }, []);
+
+  const isListView = layoutMode === 'list';
+  const isMapView = layoutMode === 'map';
+  const shouldShowSidebarPanel = !isMapView;
+  const shouldShowMapCanvas = !isListView;
+  const mapStyleOverlayClassName = `map-style-overlay${layoutMode === 'split' && showSidebar ? ' split-open' : ''}`;
+
+  const listViewPopupSummary = useMemo(() => {
+    if (!isListView || !popupInfo) return null;
+
+    const salesPrices = (popupInfo.sales || [])
+      .map((entry) => Number(entry.price))
+      .filter((value) => Number.isFinite(value));
+    const rentPrices = (popupInfo.rent || [])
+      .map((entry) => Number(entry.avg_price))
+      .filter((value) => Number.isFinite(value));
+
+    const summarizeBedrooms = (entries = []) => {
+      const counts = entries.reduce((acc, entry) => {
+        const rawBedrooms = entry?.bedrooms;
+        const parsedBedrooms = Number(rawBedrooms);
+        const key = Number.isFinite(parsedBedrooms) ? `${parsedBedrooms} BHK` : 'Unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+
+      return Object.entries(counts).sort((a, b) => {
+        if (a[0] === 'Unknown') return 1;
+        if (b[0] === 'Unknown') return -1;
+        return Number(a[0].split(' ')[0]) - Number(b[0].split(' ')[0]);
+      });
+    };
+
+    const average = (values) => {
+      if (values.length === 0) return null;
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    };
+
+    const formatMoney = (value) => {
+      if (!Number.isFinite(value)) return '-';
+      return `$${Math.round(value).toLocaleString('en-US')}`;
+    };
+
+    return {
+      zipcode: popupInfo.zipcode,
+      latitude: popupInfo.latitude,
+      longitude: popupInfo.longitude,
+      salesRecords: (popupInfo.sales || []).length,
+      rentRecords: (popupInfo.rent || []).length,
+      avgSalePrice: formatMoney(average(salesPrices)),
+      avgRentPrice: formatMoney(average(rentPrices)),
+      salesBedrooms: summarizeBedrooms(popupInfo.sales || []),
+      rentBedrooms: summarizeBedrooms((popupInfo.rent || []).filter((entry) => Number.isFinite(Number(entry.avg_price))))
+    };
+  }, [isListView, popupInfo]);
+
   return (
     <div className="map-container">
       <CompareInsightsModal
@@ -470,6 +541,8 @@ const MapContainer = ({ data, onLogout, user }) => {
       <MapHeader
         user={user}
         onLogout={onLogout}
+        layoutMode={layoutMode}
+        onLayoutModeChange={handleLayoutModeChange}
         searchInput={searchInput}
         onSearchInputChange={(value) => {
           setSearchInput(value);
@@ -485,7 +558,8 @@ const MapContainer = ({ data, onLogout, user }) => {
         onResetFilters={() => setActiveFilters({ rentMin: null, rentMax: null, roiMin: null, roiMax: null })}
       />
 
-      <div className="map-style-overlay" aria-label="Map style selector">
+      {shouldShowMapCanvas && (
+      <div className={mapStyleOverlayClassName} aria-label="Map style selector">
         <div className="style-toggle-group">
           {mapStyles.map((style) => (
             <button
@@ -499,12 +573,15 @@ const MapContainer = ({ data, onLogout, user }) => {
           ))}
         </div>
       </div>
+      )}
 
+      {shouldShowSidebarPanel && (
       <SidebarPanel
         data={filteredBaseData}
         roiByZipcode={roiByZipcode}
         selectedZipcode={normalizeZipcode(popupInfo?.zipcode)}
-        showSidebar={showSidebar}
+        showSidebar={isListView ? true : showSidebar}
+        listOnly={isListView}
         compareMode={compareMode}
         compareZipcodes={compareZipcodes}
         favZipcodes={favZipcodes}
@@ -530,11 +607,14 @@ const MapContainer = ({ data, onLogout, user }) => {
           ));
         }}
       />
+      )}
 
+      {layoutMode === 'split' && (
       <SidebarToggleArrow
         showSidebar={showSidebar}
         onToggle={handleToggleSidebar}
       />
+      )}
       
       {mapError && (
         <div className="map-error-banner">
@@ -572,6 +652,78 @@ const MapContainer = ({ data, onLogout, user }) => {
           </div>
         </div>
       )}
+
+      {listViewPopupSummary && (
+        <div className="list-view-popup-backdrop" onClick={() => setPopupInfo(null)}>
+          <div
+            className="list-view-popup-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Zipcode ${listViewPopupSummary.zipcode} details`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="list-view-popup-close"
+              onClick={() => setPopupInfo(null)}
+              aria-label="Close zipcode details"
+            >
+              ×
+            </button>
+            <h3>Zipcode {listViewPopupSummary.zipcode}</h3>
+            <p>
+              Lat: {Number(listViewPopupSummary.latitude).toFixed(4)} | Long: {Number(listViewPopupSummary.longitude).toFixed(4)}
+            </p>
+
+            <div className="list-view-popup-stats">
+              <div>
+                <span>Sales Records</span>
+                <strong>{listViewPopupSummary.salesRecords}</strong>
+              </div>
+              <div>
+                <span>Avg Sale Price</span>
+                <strong>{listViewPopupSummary.avgSalePrice}</strong>
+              </div>
+              <div>
+                <span>Rent Records</span>
+                <strong>{listViewPopupSummary.rentRecords}</strong>
+              </div>
+              <div>
+                <span>Avg Rent</span>
+                <strong>{listViewPopupSummary.avgRentPrice}</strong>
+              </div>
+            </div>
+
+            <div className="list-view-bhk-section">
+              <h4>BHK Availability (Sales)</h4>
+              <div className="list-view-bhk-chips">
+                {listViewPopupSummary.salesBedrooms.length > 0 ? (
+                  listViewPopupSummary.salesBedrooms.map(([bedroomLabel, count]) => (
+                    <span key={`sales-${bedroomLabel}`} className="list-view-bhk-chip">{bedroomLabel}: {count}</span>
+                  ))
+                ) : (
+                  <span className="list-view-bhk-chip muted">No sales bedroom data</span>
+                )}
+              </div>
+            </div>
+
+            <div className="list-view-bhk-section">
+              <h4>BHK Availability (Rent)</h4>
+              <div className="list-view-bhk-chips">
+                {listViewPopupSummary.rentBedrooms.length > 0 ? (
+                  listViewPopupSummary.rentBedrooms.map(([bedroomLabel, count]) => (
+                    <span key={`rent-${bedroomLabel}`} className="list-view-bhk-chip">{bedroomLabel}: {count}</span>
+                  ))
+                ) : (
+                  <span className="list-view-bhk-chip muted">No rent bedroom data</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shouldShowMapCanvas && (
       <Map
         key={mapStyle}
         ref={mapRef}
@@ -647,7 +799,8 @@ const MapContainer = ({ data, onLogout, user }) => {
           </Popup>
         )}
       </Map>
-      {roiLegendStats.hasData && (
+      )}
+      {shouldShowMapCanvas && roiLegendStats.hasData && (
         <div className="roi-gradient-legend" aria-label="ROI color legend">
           <div className="roi-gradient-legend-title">ROI Gradient</div>
           <div className="roi-gradient-bar" />
@@ -657,11 +810,13 @@ const MapContainer = ({ data, onLogout, user }) => {
           </div>
         </div>
       )}
+      {shouldShowMapCanvas && (
       <MapControls
         onZoomIn={() => setViewState(v => ({ ...v, zoom: Math.min(v.zoom + 1, 20) }))}
         onZoomOut={() => setViewState(v => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }))}
         onReset={handleResetMap}
       />
+      )}
     </div>
   );
 };
