@@ -17,12 +17,18 @@ const MapContainer = ({ data, onLogout, user }) => {
   const [searchInput, setSearchInput] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [favoriteToast, setFavoriteToast] = useState('');
+  const [favoriteToastVisible, setFavoriteToastVisible] = useState(false);
+  const [confirmUnfavoriteZipcode, setConfirmUnfavoriteZipcode] = useState('');
+  const [isUnfavoriteSaving, setIsUnfavoriteSaving] = useState(false);
   const [viewState, setViewState] = useState({
     longitude: -149.8,
     latitude: 61.1,
     zoom: 8
   });
   const mapRef = useRef();
+  const favoriteToastTimerRef = useRef(null);
+  const favoriteToastFadeTimerRef = useRef(null);
 
   const [favZipcodes, setFavZipcodes] = useState([]);
   const [activeFilters, setActiveFilters] = useState({
@@ -37,6 +43,47 @@ const MapContainer = ({ data, onLogout, user }) => {
   const normalizedUser = String(user ?? '').trim();
 
   const normalizeZipcode = useCallback((zipcode) => String(zipcode ?? '').trim(), []);
+
+  const showFavoriteAddedToast = useCallback((zipcode) => {
+    if (favoriteToastTimerRef.current) {
+      clearTimeout(favoriteToastTimerRef.current);
+    }
+    if (favoriteToastFadeTimerRef.current) {
+      clearTimeout(favoriteToastFadeTimerRef.current);
+    }
+    setFavoriteToast(`${zipcode} has been added to favourites`);
+    setFavoriteToastVisible(true);
+    favoriteToastTimerRef.current = setTimeout(() => {
+      setFavoriteToastVisible(false);
+      favoriteToastTimerRef.current = null;
+    }, 4000);
+    favoriteToastFadeTimerRef.current = setTimeout(() => {
+      setFavoriteToast('');
+      favoriteToastFadeTimerRef.current = null;
+    }, 4400);
+  }, []);
+
+  useEffect(() => () => {
+    if (favoriteToastTimerRef.current) {
+      clearTimeout(favoriteToastTimerRef.current);
+    }
+    if (favoriteToastFadeTimerRef.current) {
+      clearTimeout(favoriteToastFadeTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!confirmUnfavoriteZipcode) return;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && !isUnfavoriteSaving) {
+        setConfirmUnfavoriteZipcode('');
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [confirmUnfavoriteZipcode, isUnfavoriteSaving]);
 
   const fetchFavorites = useCallback(async () => {
     if (!normalizedUser) {
@@ -177,6 +224,11 @@ const MapContainer = ({ data, onLogout, user }) => {
     if (!normalizedZipcode || !normalizedUser) return;
 
     const isFavorited = favZipcodes.includes(normalizedZipcode);
+    if (isFavorited) {
+      setConfirmUnfavoriteZipcode(normalizedZipcode);
+      return;
+    }
+
     const endpoint = isFavorited
       ? `/api/favorites/${encodeURIComponent(normalizedZipcode)}`
       : '/api/favorites';
@@ -200,7 +252,45 @@ const MapContainer = ({ data, onLogout, user }) => {
       : [];
     setFavZipcodes(updatedFavorites);
     setCompareZipcodes(prev => prev.filter(z => updatedFavorites.includes(normalizeZipcode(z))));
-  }, [favZipcodes, normalizeZipcode, normalizedUser]);
+    if (!isFavorited) {
+      showFavoriteAddedToast(normalizedZipcode);
+    }
+  }, [favZipcodes, normalizeZipcode, normalizedUser, showFavoriteAddedToast]);
+
+  const handleConfirmUnfavorite = useCallback(async () => {
+    const normalizedZipcode = normalizeZipcode(confirmUnfavoriteZipcode);
+    if (!normalizedZipcode || !normalizedUser) {
+      setConfirmUnfavoriteZipcode('');
+      return;
+    }
+
+    setIsUnfavoriteSaving(true);
+    try {
+      const response = await fetch(`/api/favorites/${encodeURIComponent(normalizedZipcode)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User': normalizedUser
+        }
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update favorites');
+      }
+
+      const updatedFavorites = Array.isArray(result.favorites)
+        ? result.favorites.map(normalizeZipcode)
+        : [];
+      setFavZipcodes(updatedFavorites);
+      setCompareZipcodes(prev => prev.filter(z => updatedFavorites.includes(normalizeZipcode(z))));
+      setConfirmUnfavoriteZipcode('');
+    } catch (err) {
+      // keep dialog open so user can retry or cancel
+    } finally {
+      setIsUnfavoriteSaving(false);
+    }
+  }, [confirmUnfavoriteZipcode, normalizeZipcode, normalizedUser]);
 
   const handleToggleShowOnlyFavs = useCallback(async () => {
     if (!showOnlyFavs) {
@@ -436,6 +526,37 @@ const MapContainer = ({ data, onLogout, user }) => {
       {mapError && (
         <div className="map-error-banner">
           {mapError}
+        </div>
+      )}
+      {favoriteToast && (
+        <div className={`favorite-toast ${favoriteToastVisible ? 'visible' : 'fading'}`} role="status" aria-live="polite">
+          {favoriteToast}
+        </div>
+      )}
+      {confirmUnfavoriteZipcode && (
+        <div className="confirm-unfavorite-overlay" role="dialog" aria-modal="true" aria-label="Confirm unfavourite">
+          <div className="confirm-unfavorite-modal">
+            <h3>Confirm Unfavourite</h3>
+            <p>Are you sure you want to unfavourite {confirmUnfavoriteZipcode}?</p>
+            <div className="confirm-unfavorite-actions">
+              <button
+                type="button"
+                className="confirm-unfavorite-cancel"
+                onClick={() => setConfirmUnfavoriteZipcode('')}
+                disabled={isUnfavoriteSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="confirm-unfavorite-yes"
+                onClick={handleConfirmUnfavorite}
+                disabled={isUnfavoriteSaving}
+              >
+                {isUnfavoriteSaving ? 'Removing...' : 'Yes, Unfavourite'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <Map

@@ -23,8 +23,7 @@ const ZipcodeSheet = ({
         <thead>
           <tr>
             {showCompareColumn && <th>Compare</th>}
-            <th>Favorite</th>
-            <th>Zipcode</th>
+            <th style={{ textAlign: 'center' }}>Zipcode</th>
             <th>Sales Records</th>
             <th>Avg Sale Price</th>
             <th>Rent Records</th>
@@ -55,12 +54,15 @@ const ZipcodeSheet = ({
                     />
                   </td>
                 )}
-                <td onClick={e => { e.stopPropagation(); handleFavoriteClick(e, item, favZipcodes); }} style={{ textAlign: 'center' }}>
-                  <span style={{ fontSize: '18px', color: favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '#e25555' : '#bbb', cursor: 'pointer' }}>
+                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <span
+                    onClick={e => { e.stopPropagation(); handleFavoriteClick(e, item, favZipcodes); }}
+                    style={{ fontSize: '18px', color: favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '#e25555' : '#bbb', cursor: 'pointer' }}
+                  >
                     {favZipcodes.includes(normalizeZipcode(item.zipcode)) ? '❤️' : '🤍'}
                   </span>
+                  <span style={{ marginLeft: '8px' }}>{item.zipcode}</span>
                 </td>
-                <td>{item.zipcode}</td>
                 <td>{item.sales.length}</td>
                 <td>{salesStats > 0 ? `$${salesStats.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}` : '-'}</td>
                 <td>{item.rent.length}</td>
