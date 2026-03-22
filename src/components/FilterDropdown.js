@@ -64,7 +64,13 @@ const FilterDropdown = ({ data, roiByZipcode, onApplyFilters, onResetFilters }) 
 
   return (
     <div className="filter-dropdown">
-      <button type="button" className="filter-btn" onClick={() => setOpen((prev) => !prev)}>
+      <button
+        type="button"
+        className={`layout-view-btn filter-btn${open ? ' active' : ''}`}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
         FILTERS
       </button>
 

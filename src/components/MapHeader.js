@@ -23,8 +23,8 @@ const MapHeader = ({
       <p>YOUR ONE STOP DESTINATION FOR ALL HOUSING LAND INSIGHTS</p>
 
       <div className="top-right-auth">
-        <span className="user-label">{user}</span>
-        <button className="logout-btn" onClick={onLogout} title="Logout">Logout</button>
+        <span className="layout-view-btn auth-chip active" title={user}>{user}</span>
+        <button type="button" className="layout-view-btn auth-chip logout-chip" onClick={onLogout} title="Logout">Logout</button>
       </div>
 
       <div className="layout-view-switch" role="group" aria-label="Select layout view">

@@ -3,7 +3,7 @@ import React from 'react';
 const CompareToggle = ({ compareMode, compareZipcodes, favZipcodes, onToggleCompareMode }) => {
   return (
     <button
-      className={`compare-btn${compareMode ? ' active' : ''}`}
+      className={`layout-view-btn compare-btn${compareMode ? ' active' : ''}`}
       type="button"
       onClick={onToggleCompareMode}
       disabled={!compareMode && favZipcodes.length === 0}
