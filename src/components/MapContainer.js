@@ -21,7 +21,7 @@ const MapContainer = ({ data, onLogout, user }) => {
   const [favoriteToastVisible, setFavoriteToastVisible] = useState(false);
   const [confirmUnfavoriteZipcode, setConfirmUnfavoriteZipcode] = useState('');
   const [isUnfavoriteSaving, setIsUnfavoriteSaving] = useState(false);
-  const [layoutMode, setLayoutMode] = useState('split');
+  const [layoutMode, setLayoutMode] = useState('map');
   const [viewState, setViewState] = useState({
     longitude: -149.8,
     latitude: 61.1,
